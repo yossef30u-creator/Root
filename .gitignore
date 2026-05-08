@@ -1,0 +1,11 @@
+# Secrets
+.env
+
+# Python
+__pycache__/
+venv/
+*.py[cod]
+
+# Root Internal Storage
+.root/vector_store/
+.root/logs/
