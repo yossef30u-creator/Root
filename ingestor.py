@@ -31,36 +31,6 @@ if not Config.OPENAI_API_KEY:
 # =====
 
 # =====
-
-
-
-#!/usr/bin/env python3
-# =====
-import os
-import json
-import subprocess
-import requests
-from datetime import datetime
-from openai import OpenAI
-from config import Config
-from memory import RootMemory
-# =====
-
-# =====
-# הגדרת נתיבי עבודה מדויקים
-PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
-os.chdir(PROJECT_DIR)
-
-# וידוא שקובצי הגדרה ו-API קיימים
-GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
-REPO_NAME = os.getenv("GITHUB_REPOSITORY")
-
-if not Config.OPENAI_API_KEY:
-    print("❌ [Critical Error] API Key missing! Check your .env file.")
-    exit(1)
-# =====
-
-# =====
 # אתחול הלקוח של OpenAI לתהליך הניתוח הסמנטי
 client = OpenAI(
     base_url=Config.BASE_URL,
@@ -70,6 +40,42 @@ client = OpenAI(
         "X-Title": "Root Agentic OS",
     }
 )
+# =====
+
+# =====
+def update_history_log(critic_feedback, tasks_list):
+    """(Future-Proof) מעדכן את קובץ ההיסטוריה הכרונולוגי של הפרויקט באופן מצטבר ובטוח"""
+    history_file = "HISTORY.md"
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    # עיצוב משימות או טקסט חלופי אם אין
+    tasks_str = "\n".join([f"* [ ] {t}" for t in tasks_list]) if tasks_list else "* לא הופקו משימות יזומות בריצה זו."
+    critic_clean = critic_feedback if (critic_feedback and not critic_feedback.startswith("PASS")) else "הקוד תקין, אין הערות ארכיטקטוניות (PASS)."
+    
+    new_entry = f"## 📅 רשומה מהתאריך: {now}\n---\n### 🤖 ביקורת ה-AI (Critic):\n{critic_clean}\n\n### 🚀 משימות שהוצעו (Proactive):\n{tasks_str}\n\n---\n\n"
+    
+    try:
+        existing_content = ""
+        if os.path.exists(history_file):
+            with open(history_file, "r", encoding="utf-8") as f:
+                existing_content = f.read()
+                # צופה פני עתיד: שומר רק את 50 הריצות האחרונות למניעת ניפוח קובץ
+                if "## 📅 רשומה מהתאריך" in existing_content:
+                    entries = existing_content.split("## 📅 רשומה מהתאריך")
+                    if len(entries) > 50:
+                        existing_content = "## 📅 רשומה מהתאריך" + "## 📅 רשומה מהתאריך".join(entries[1:51])
+
+        with open(history_file, "w", encoding="utf-8") as f:
+            # הוספת כותרת ראשית לקובץ חדש
+            if not existing_content or "# 📜 יומן ניתוחים היסטורי" not in existing_content:
+                f.write("# 📜 יומן ניתוחים היסטורי - Root Agentic OS\n\n")
+            
+            clean_existing = existing_content.replace("# 📜 יומן ניתוחים היסטורי - Root Agentic OS\n\n", "")
+            f.write(new_entry + clean_existing)
+            
+        print(f"✅ [History] Entry safely added to {history_file}")
+    except Exception as e:
+        print(f"⚠️ [History] Failed to write history log: {e}")
 # =====
 
 # =====
@@ -128,13 +134,10 @@ def create_github_issue(title, body, labels=None):
 # =====
 def analyze_diff(diff_text):
     """(Synthesis) מנתח את ההשפעה הארכיטקטונית בעזרת ה-LLM"""
-    # חיתוך הטקסט כדי לא לעבור את מגבלת ה-Context (צופה פני עתיד)
     if len(diff_text) > 40000:
         diff_text = diff_text[:40000] + "\n\n[... Diff truncated for context limits ...]"
 
     print(f"[Root] Analyzing semantic impact with {Config.MODEL}...")
-    
-    # צופה פני עתיד: שליפת שפת הממשק מההגדרות (ברירת מחדל: אנגלית)
     target_lang = getattr(Config, 'UI_LANGUAGE', 'English')
     
     prompt = f"Analyze this code diff and provide a short, 1-2 sentence summary of its impact on the project architecture. Focus on logic and structure. The summary MUST be written in {target_lang}:\n\n{diff_text}"
@@ -153,13 +156,10 @@ def analyze_diff(diff_text):
 # =====
 def run_critic(diff_text, past_context=""):
     """(Critic) מבקר את הקוד תוך התחשבות בזיכרון קודם מהפרויקט"""
-    # חיתוך הטקסט כדי לא לעבור את מגבלת ה-Context (צופה פני עתיד)
     if len(diff_text) > 40000:
         diff_text = diff_text[:40000] + "\n\n[... Diff truncated for context limits ...]"
 
     print(f"[Root Critic] Reviewing code quality with historical context...")
-    
-    # צופה פני עתיד: התאמת שפת הביקורת
     target_lang = getattr(Config, 'UI_LANGUAGE', 'English')
     
     context_instruction = ""
@@ -207,12 +207,10 @@ def update_manifest(analysis, critic_feedback=None):
 def propose_improvements(root_memory):
     """(Proactive) סורק את המערכת ומציע שיפורים עתידיים כ-Issues בגיטהאב"""
     print("[Root Proactive] Brainstorming future improvements...")
-    
-    # צופה פני עתיד: יצירת משימות בשפת היעד
     target_lang = getattr(Config, 'UI_LANGUAGE', 'English')
+    proposed_titles = []
     
     try:
-        # שליפת חולשות ויעדים ארכיטקטוניים מהזיכרון
         context_results = root_memory.search_memory("project architecture constraints weaknesses roadmap features", top_k=5)
         context = ""
         
@@ -239,8 +237,10 @@ def propose_improvements(root_memory):
         tasks = result.get("tasks", [])
         
         for task in tasks:
+            title = task.get('title')
+            proposed_titles.append(title)
             create_github_issue(
-                title=f"🤖 Root Suggestion: {task.get('title')}",
+                title=f"🤖 Root Suggestion: {title}",
                 body=task.get('description') + "\n\n---\n*Proactively generated by Root OS based on vector memory analysis.*",
                 labels=["root-task", "automated-suggestion"]
             )
@@ -248,8 +248,11 @@ def propose_improvements(root_memory):
         if tasks:
             print(f"🚀 [Root Proactive] Proposed {len(tasks)} new tasks in GitHub.")
             
+        return proposed_titles
+            
     except Exception as e:
         print(f"⚠️ [Root Proactive] Failed to propose improvements: {e}")
+        return proposed_titles
 # =====
 
 # =====
@@ -257,21 +260,17 @@ if __name__ == "__main__":
     diff, metadata = get_git_info()
     
     if diff:
-        # אתחול הזיכרון הוקטורי ההיברידי
         root_memory = RootMemory()
         
-        # חיפוש היסטוריה רלוונטית בזיכרון על בסיס ה-Diff הנוכחי
         print("[Root] Searching long-term memory for context...")
         past_context = ""
         try:
-            # תיקון תאימות קריאה לפונקציה החדשה ולמבנה החזרת הנתונים (Tuples)
             search_results = root_memory.search_memory(query=diff, top_k=2)
             if search_results:
                 past_context = "\n".join([item[1]["text"] for item in search_results if isinstance(item, tuple)])
         except Exception as e:
             print(f"⚠️ [Memory] Could not retrieve past context: {e}")
 
-        # 2. Synthesis & Critic Review (עם הקשר מהזיכרון)
         analysis = analyze_diff(diff)
         critic_feedback = run_critic(diff, past_context)
         
@@ -284,10 +283,8 @@ if __name__ == "__main__":
                 create_github_issue(issue_title, issue_body)
         
         if analysis:
-            # 3. Persistence - Short Term Memory (Markdown)
             update_manifest(analysis, critic_feedback)
             
-            # 4. Persistence - Long Term Memory (Vector DB)
             memory_saved = root_memory.add_memory(
                 text=f"Analysis: {analysis}\nCritic: {critic_feedback}", 
                 metadata=metadata
@@ -296,8 +293,11 @@ if __name__ == "__main__":
             if memory_saved:
                 print("✅ [Root] Continuous Context Loop Completed Successfully.")
                 
-            # 5. Proactive Mode - הסוכן מחשב ומציע שיפורים עתידיים באופן עצמאי
-            propose_improvements(root_memory)
+            # שליפה ושמירה של המשימות החדשות עבור יומן ההיסטוריה
+            proposed_tasks = propose_improvements(root_memory)
+            
+            # הרצת מערכת היומן החדשה
+            update_history_log(critic_feedback, proposed_tasks)
             
         else:
             print("⚠️ [Root] Update aborted due to API error. Files preserved.")
