@@ -1,11 +1,6 @@
-# Secrets
-.env
-
-# Python
-__pycache__/
+﻿.env
 venv/
-*.py[cod]
-
-# Root Internal Storage
-.root/vector_store/
+__pycache__/
+*.pyc
 .root/logs/
+.root/memory.json

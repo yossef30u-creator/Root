@@ -1,0 +1,43 @@
+name: Root Continuous Context Ingestor
+
+on:
+  push:
+    branches:
+      - main  # צופה פני עתיד: מופעל רק בעדכון הבראנץ' המרכזי
+  workflow_dispatch: # מאפשר הפעלה ידנית לצורך סריקה מלאה
+
+jobs:
+  update-context:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # קריטי: מאפשר לסוכן לעדכן את ROOT.md בעצמו
+      issues: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # מוודא שה-AI יוכל לראות את ה-Diffs בין הגרסאות
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install openai python-dotenv
+
+      - name: Run Root Ingestor
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }} # משיכה מאובטחת מהענן
+        run: python ingestor.py
+
+      - name: Commit and Push Manifest Changes
+        run: |
+          git config --local user.email "root-agent@github.com"
+          git config --local user.name "Root-Agent"
+          git add ROOT.md
+          git commit -m "Root: Auto-update Architecture Context [skip ci]" || echo "No changes to commit"
+          git push
