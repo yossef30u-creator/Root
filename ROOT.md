@@ -1,7 +1,7 @@
 # ROOT - Project Manifest 🌳
 
 > **Tagline:** The Proactive Context Layer for Autonomous AI Agents.
-> **Status:** Last Update - Error: Error code: 401 - {'error': {'message': 'Missing Authentication header', 'code': 401}}...
+> **Status:** Last Update - This code diff introduces a new `README_SECURITY.md` for security guidance, centralizes configuration management with a new `config.py`, and refines error handling and reporting in `ingestor.py` by utilizing centralized configurations and improving API error logging. These changes enhance the project architecture by promoting modular configuration management, improving security transparency, and ensuring clearer error communication in the logging and manifest update processes.
 
 ## 🎯 חזון ומטרה (Vision)
 Root היא תשתית ה-Agentic OS לניהול הקשר (Context) וזיכרון עבור סוכני AI. המערכת הופכת מאגרי קוד לישויות "מודעות לעצמן" המבטיחות שכל סוכן AI יבין מיידית את הארכיטקטורה והכוונות של הפרויקט.
