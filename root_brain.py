@@ -6,7 +6,7 @@ from config import Config
 
 # =====
 class RootBrain:
-    def __init__(self, mcp_url="http://localhost:8000"):
+    def __init__(self, mcp_url="http://127.0.0.1:8000"):
         self.mcp_url = mcp_url
         self.client = OpenAI(
             base_url=Config.BASE_URL,
@@ -19,9 +19,9 @@ class RootBrain:
     def ask_memory(self, query):
         """שואב הקשר מהזיכרון דרך שרת ה-MCP"""
         try:
-            res = requests.get(f"{self.mcp_url}/query", params={"q": query})
+            res = requests.get(f"{self.mcp_url}/query", params={"query_string": query})
             if res.status_code == 200:
-                return str(res.json().get("context", []))
+                return str(res.json().get("results", []))
             return "No memory available."
         except:
             return "Memory server offline."
@@ -29,7 +29,7 @@ class RootBrain:
 
 # =====
     def execute_action(self, command):
-        """מבצע פעולה דרך ה-MCP ומחזיר את הפלט"""
+        """שולח פקודה לשרת ה-MCP כדי שיבצע אותה בטרמינל"""
         try:
             res = requests.post(f"{self.mcp_url}/execute", json={"command": command})
             if res.status_code == 200:
@@ -67,7 +67,7 @@ class RootBrain:
             output = self.execute_action(command)
             print(f"📊 [Brain] Output:\n{output}")
             
-            # שלב 3: תיקון אוטומטי (Self-Correction) אם יש שגיאה
+            # שלב 3: תיקון אוטומטי
             if "⚠️ Failed" in output or "❌ Error" in output or "not found" in output.lower():
                 print("🔄 [Brain] Error detected! Initiating self-correction...")
                 self.self_correct(command, output)
