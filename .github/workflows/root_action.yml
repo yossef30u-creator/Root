@@ -4,7 +4,7 @@ name: Root Continuous Context Ingestor
 on:
   push:
     branches:
-      - main  # מופעל רק בעדכון הבראנץ' המרכזי
+      - master  # 🔴 תוקן מ-main ל-master לפי הפרויקט שלך
   workflow_dispatch: # מאפשר הפעלה ידנית לצורך סריקה מלאה
 
 jobs:
@@ -25,7 +25,6 @@ jobs:
         with:
           python-version: '3.10'
 
-      # שלב חדש: מנגנון שמירת הזיכרון הוקטורי בין ריצות (צופה פני עתיד)
       - name: Cache Vector Memory
         uses: actions/cache@v4
         with:
@@ -42,8 +41,9 @@ jobs:
       - name: Run Root Ingestor
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # נדרש עבור פתיחת Issues
-          GITHUB_REPOSITORY: ${{ github.repository }} # נדרש כדי לזהות את המאגר 
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          UI_LANGUAGE: Hebrew  # 🔴 קריטי כדי שהסוכן ימשיך לפתוח Issues בעברית
         run: python ingestor.py
 
       - name: Commit and Push Manifest Changes
@@ -52,12 +52,10 @@ jobs:
           git config --local user.name "Root-Agent"
           
           # סנכרון למניעת התנגשויות
-          git pull origin main --rebase
+          git pull origin master --rebase # 🔴 תוקן ל-master
           
-          # דחיפת קובץ הזיכרון הכתוב בלבד (את ה-DB הוקטורי אנחנו שומרים ב-Cache)
-          if [ -f ROOT.md ]; then
-            git add ROOT.md
-            git commit -m "Root: Auto-update Architecture Context [skip ci]" || echo "No changes to commit"
-            git push origin HEAD:main --force
-          fi
+          # דחיפת קובץ המניפסט והזיכרון
+          git add ROOT.md memory.json || true
+          git commit -m "🤖 Root: Auto-update Architecture Context & Memory [skip ci]" || echo "No changes to commit"
+          git push origin HEAD:master --force # 🔴 תוקן ל-master
 # =====

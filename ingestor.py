@@ -1,16 +1,35 @@
+#!/usr/bin/env python3
+# =====
+import os
+import json
+import subprocess
+import requests
+from datetime import datetime
+from openai import OpenAI
+from config import Config
+from memory import RootMemory
+# =====
+
 # =====
 # הגדרת נתיבי עבודה מדויקים
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 os.chdir(PROJECT_DIR)
 
-# וידוא שקובצי הגדרה ו-API קיימים
-# שים לב: כאן אנחנו מושכים ישירות מ-Config כדי שה-.env יעבוד גם בטרמינל
+# תיקון קריטי: מושכים מ-Config ולא מ-os.getenv כדי שה-.env ייקרא בטרמינל
 GITHUB_TOKEN = Config.GITHUB_TOKEN
 REPO_NAME = Config.GITHUB_REPOSITORY
+
+# בדיקת תקינות (Debug)
+if not GITHUB_TOKEN:
+    print("❌ [Critical] GITHUB_TOKEN is missing in .env!")
+if not REPO_NAME:
+    print("❌ [Critical] GITHUB_REPOSITORY is missing in .env!")
 
 if not Config.OPENAI_API_KEY:
     print("❌ [Critical Error] API Key missing! Check your .env file.")
     exit(1)
+# =====
+
 # =====
 
 
