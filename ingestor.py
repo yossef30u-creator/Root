@@ -44,36 +44,45 @@ client = OpenAI(
 
 # =====
 def update_history_log(critic_feedback, tasks_list):
-    """(Future-Proof) מעדכן את קובץ ההיסטוריה הכרונולוגי של הפרויקט באופן מצטבר ובטוח"""
+    """(Future-Proof) מעדכן את קובץ ההיסטוריה בעיצוב נקי וקריא"""
     history_file = "HISTORY.md"
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    now = datetime.now().strftime("%d/%m/%Y %H:%M") # פורמט קריא יותר
     
-    # עיצוב משימות או טקסט חלופי אם אין
-    tasks_str = "\n".join([f"* [ ] {t}" for t in tasks_list]) if tasks_list else "* לא הופקו משימות יזומות בריצה זו."
+    # עיצוב משימות כרשימה מסודרת
+    tasks_str = "\n".join([f"  - [ ] {t}" for t in tasks_list]) if tasks_list else "  - *לא הופקו משימות חדשות*"
+    
+    # ניקוי הביקורת אם היא 'PASS'
     critic_clean = critic_feedback if (critic_feedback and not critic_feedback.startswith("PASS")) else "הקוד תקין, אין הערות ארכיטקטוניות (PASS)."
     
-    new_entry = f"## 📅 רשומה מהתאריך: {now}\n---\n### 🤖 ביקורת ה-AI (Critic):\n{critic_clean}\n\n### 🚀 משימות שהוצעו (Proactive):\n{tasks_str}\n\n---\n\n"
+    # יצירת רשומה בעיצוב "דשבורד"
+    new_entry = (
+        f"## 📅 {now}\n"
+        f"**🔍 ניתוח וביקורת:**\n"
+        f"> {critic_clean}\n\n"
+        f"**🛠️ משימות לביצוע:**\n"
+        f"{tasks_str}\n\n"
+        f"---\n\n"
+    )
     
     try:
         existing_content = ""
         if os.path.exists(history_file):
             with open(history_file, "r", encoding="utf-8") as f:
                 existing_content = f.read()
-                # צופה פני עתיד: שומר רק את 50 הריצות האחרונות למניעת ניפוח קובץ
-                if "## 📅 רשומה מהתאריך" in existing_content:
-                    entries = existing_content.split("## 📅 רשומה מהתאריך")
+                # הגבלה ל-50 רשומות למניעת ניפוח הקובץ
+                if "## 📅" in existing_content:
+                    entries = existing_content.split("## 📅")
                     if len(entries) > 50:
-                        existing_content = "## 📅 רשומה מהתאריך" + "## 📅 רשומה מהתאריך".join(entries[1:51])
+                        existing_content = "## 📅" + "## 📅".join(entries[1:51])
 
         with open(history_file, "w", encoding="utf-8") as f:
-            # הוספת כותרת ראשית לקובץ חדש
             if not existing_content or "# 📜 יומן ניתוחים היסטורי" not in existing_content:
                 f.write("# 📜 יומן ניתוחים היסטורי - Root Agentic OS\n\n")
             
             clean_existing = existing_content.replace("# 📜 יומן ניתוחים היסטורי - Root Agentic OS\n\n", "")
             f.write(new_entry + clean_existing)
             
-        print(f"✅ [History] Entry safely added to {history_file}")
+        print(f"✅ [History] Formatted entry added to {history_file}")
     except Exception as e:
         print(f"⚠️ [History] Failed to write history log: {e}")
 # =====
@@ -108,7 +117,7 @@ def get_git_info():
 def create_github_issue(title, body, labels=None):
     """יוצר Issue בגיטהאב. תומך בתוויות דינמיות למשימות שונות"""
     if not GITHUB_TOKEN or not REPO_NAME:
-        print("⚠️ [GitHub API] Missing credentials, skipping issue creation. Make sure GITHUB_TOKEN is in the workflow.")
+        print("⚠️ [GitHub API] Missing credentials, skipping issue creation.")
         return
 
     if labels is None:
@@ -126,21 +135,22 @@ def create_github_issue(title, body, labels=None):
         if response.status_code == 201:
             print(f"📢 [Root] GitHub Issue created: {response.json().get('html_url')}")
         else:
-            print(f"❌ [GitHub API] Failed to create issue: {response.status_code} - {response.text}")
+            print(f"❌ [GitHub API] Failed: {response.status_code}")
     except Exception as e:
         print(f"❌ [GitHub API] Connection error: {e}")
 # =====
 
 # =====
 def analyze_diff(diff_text):
-    """(Synthesis) מנתח את ההשפעה הארכיטקטונית בעזרת ה-LLM"""
+    """(Synthesis) מנתח את ההשפעה הארכיטקטונית - עם דגש על מבנה נקודות"""
     if len(diff_text) > 40000:
-        diff_text = diff_text[:40000] + "\n\n[... Diff truncated for context limits ...]"
+        diff_text = diff_text[:40000] + "\n\n[... Diff truncated ...]"
 
-    print(f"[Root] Analyzing semantic impact with {Config.MODEL}...")
+    print(f"[Root] Analyzing semantic impact...")
     target_lang = getattr(Config, 'UI_LANGUAGE', 'English')
     
-    prompt = f"Analyze this code diff and provide a short, 1-2 sentence summary of its impact on the project architecture. Focus on logic and structure. The summary MUST be written in {target_lang}:\n\n{diff_text}"
+    # הוספת הנחיה למבנה של נקודות (Bullet Points)
+    prompt = f"Analyze this code diff and provide a short summary in {target_lang}. Use bullet points for different points of impact if possible:\n\n{diff_text}"
     
     try:
         response = client.chat.completions.create(
@@ -149,58 +159,75 @@ def analyze_diff(diff_text):
         )
         return response.choices[0].message.content.strip()
     except Exception as e:
-        print(f"❌ [API Error]: Semantic Engine failed. Details: {e}")
+        print(f"❌ [API Error]: {e}")
         return None
 # =====
 
 # =====
 def run_critic(diff_text, past_context=""):
-    """(Critic) מבקר את הקוד תוך התחשבות בזיכרון קודם מהפרויקט"""
+    """(Critic) מבקר את הקוד - עם דגש על מבנה נקודות"""
     if len(diff_text) > 40000:
-        diff_text = diff_text[:40000] + "\n\n[... Diff truncated for context limits ...]"
+        diff_text = diff_text[:40000] + "\n\n[... Diff truncated ...]"
 
-    print(f"[Root Critic] Reviewing code quality with historical context...")
+    print(f"[Root Critic] Reviewing quality...")
     target_lang = getattr(Config, 'UI_LANGUAGE', 'English')
     
-    context_instruction = ""
-    if past_context:
-        context_instruction = f"\n\nConsider this historical context from the project's memory when evaluating:\n{past_context}"
+    context_instruction = f"\nContext:\n{past_context}" if past_context else ""
 
-    critic_prompt = f"As the Root Critic, analyze this code diff. If it aligns with the project goals and has no architectural issues, output ONLY the word 'PASS'. Otherwise, concisely report the inconsistencies or technical debt. Your detailed report MUST be written in {target_lang}.{context_instruction}\n\nDiff:\n{diff_text}"
+    # הנחיה לשימוש בנקודות בביקורת
+    critic_prompt = f"As the Root Critic, analyze this code diff. If okay, output ONLY 'PASS'. Otherwise, report issues using bullet points in {target_lang}.{context_instruction}\n\nDiff:\n{diff_text}"
     
     try:
         response = client.chat.completions.create(
             model=Config.MODEL,
             messages=[
-                {"role": "system", "content": "You are the Root Critic Agent. Be sharp, direct, and remember past decisions."},
+                {"role": "system", "content": "You are the Root Critic. Be sharp and use bullet points for clarity."},
                 {"role": "user", "content": critic_prompt}
             ]
         )
         return response.choices[0].message.content.strip()
     except Exception as e:
-        print(f"❌ [API Error]: Critic Engine failed. Details: {e}")
+        print(f"❌ [API Error]: {e}")
         return None
 # =====
 
 # =====
 def update_manifest(analysis, critic_feedback=None):
-    """מעדכן את קובץ ה-ROOT.md (זיכרון לטווח קצר, סטטוס וביקורת)"""
+    """מעדכן את ROOT.md בעיצוב דשבורד מקצועי"""
     if os.path.exists(Config.MANIFEST_PATH):
         with open(Config.MANIFEST_PATH, "r", encoding="utf-8") as f:
             lines = f.readlines()
             
+        new_lines = []
+        now_str = datetime.now().strftime('%d/%m/%Y %H:%M')
+        
+        for line in lines:
+            if line.startswith("> **Status:**"):
+                new_lines.append(f"> **Status:** 🟢 מעודכן ל-{now_str}\n")
+                new_lines.append(f"> \n")
+                new_lines.append(f"> **ניתוח אחרון:**\n")
+                # פירוק הטקסט לנקודות בצורה חכמה
+                for part in analysis.split('\n'):
+                    if part.strip():
+                        prefix = "" if part.strip().startswith(('*', '-', '>')) else "* "
+                        new_lines.append(f"> {prefix}{part.strip()}\n")
+                
+                if critic_feedback and not critic_feedback.startswith("PASS"):
+                    new_lines.append(f"> \n")
+                    new_lines.append(f"> **⚠️ התראת ארכיטקט (Critic):**\n")
+                    for part in critic_feedback.split('\n'):
+                        if part.strip():
+                            prefix = "" if part.strip().startswith(('*', '-', '>')) else "* "
+                            new_lines.append(f"> {prefix}{part.strip()}\n")
+                new_lines.append(f">\n")
+            elif line.startswith("> **Critic Alert:**"):
+                continue # הכל כבר נכנס תחת Status בגרסה החדשה
+            else:
+                new_lines.append(line)
+
         with open(Config.MANIFEST_PATH, "w", encoding="utf-8") as f:
-            for line in lines:
-                if line.startswith("> **Status:**"):
-                    clean_analysis = analysis.replace('\n', ' ')
-                    f.write(f"> **Status:** Last Update - {clean_analysis}\n")
-                    
-                    if critic_feedback and not critic_feedback.startswith("PASS"):
-                        clean_critic = critic_feedback.replace('\n', ' ')
-                        f.write(f"> **Critic Alert:** {clean_critic}\n")
-                else:
-                    f.write(line)
-        print("✅ [Root] ROOT.md updated with fresh context.")
+            f.writelines(new_lines)
+        print("✅ [Root] ROOT.md updated with Dashboard format.")
 # =====
 
 # =====
@@ -211,7 +238,7 @@ def propose_improvements(root_memory):
     proposed_titles = []
     
     try:
-        context_results = root_memory.search_memory("project architecture constraints weaknesses roadmap features", top_k=5)
+        context_results = root_memory.search_memory("project architecture constraints roadmap features", top_k=5)
         context = ""
         
         if context_results:
@@ -219,13 +246,9 @@ def propose_improvements(root_memory):
                 if isinstance(item, tuple) and len(item) == 2:
                     context += f"- {item[1].get('text', '')}\n"
 
-        prompt = f"""Based on the project's vector memory context:
-        {context}
-        
-        Identify gaps and suggest 1 to 2 technical improvements (e.g., refactoring, missing features, security).
-        Return ONLY a JSON object with a 'tasks' key containing an array of objects. Each object must have a 'title' and 'description'.
-        The 'title' and 'description' MUST be written in {target_lang}.
-        """
+        prompt = f"""Based on context: {context}
+        Suggest 1-2 technical improvements. Return JSON object with 'tasks' (array of 'title' and 'description').
+        Write in {target_lang}."""
 
         response = client.chat.completions.create(
             model=Config.MODEL,
@@ -241,72 +264,56 @@ def propose_improvements(root_memory):
             proposed_titles.append(title)
             create_github_issue(
                 title=f"🤖 Root Suggestion: {title}",
-                body=task.get('description') + "\n\n---\n*Proactively generated by Root OS based on vector memory analysis.*",
+                body=task.get('description') + "\n\n---\n*Proactively generated by Root OS.*",
                 labels=["root-task", "automated-suggestion"]
             )
             
-        if tasks:
-            print(f"🚀 [Root Proactive] Proposed {len(tasks)} new tasks in GitHub.")
-            
         return proposed_titles
-            
     except Exception as e:
-        print(f"⚠️ [Root Proactive] Failed to propose improvements: {e}")
+        print(f"⚠️ [Root Proactive] Failed: {e}")
         return proposed_titles
 # =====
 
 # =====
-# =====
 if __name__ == "__main__":
-    # 🚀 צופה פני עתיד: התנעה עצמית - אם היומן לא קיים, ניצור אותו מיד כדי שגיטהאב יוכל לעקוב אחריו
+    # התנעה עצמית ליומן
     if not os.path.exists("HISTORY.md"):
-        print("[History] Initializing missing HISTORY.md file for tracking...")
-        update_history_log("אתחול מערכת ראשוני - יומן היסטורי נוצר בהצלחה (System Boot).", [])
+        print("[History] Initializing HISTORY.md...")
+        update_history_log("אתחול מערכת ראשוני.", [])
 
     diff, metadata = get_git_info()
     
     if diff:
         root_memory = RootMemory()
         
-        print("[Root] Searching long-term memory for context...")
+        print("[Root] Searching long-term memory...")
         past_context = ""
         try:
             search_results = root_memory.search_memory(query=diff, top_k=2)
             if search_results:
                 past_context = "\n".join([item[1]["text"] for item in search_results if isinstance(item, tuple)])
         except Exception as e:
-            print(f"⚠️ [Memory] Could not retrieve past context: {e}")
+            print(f"⚠️ [Memory] Failed: {e}")
 
         analysis = analyze_diff(diff)
         critic_feedback = run_critic(diff, past_context)
         
-        if critic_feedback:
-            print(f"\n🤖 [Critic Feedback]:\n{critic_feedback}\n")
-            
-            if not critic_feedback.startswith("PASS"):
-                issue_title = f"Root Critic Alert: Review Needed on Commit {metadata['commit']}"
-                issue_body = f"### Agent Feedback:\n{critic_feedback}\n\n**Commit Message:** {metadata['message']}"
-                create_github_issue(issue_title, issue_body)
+        if critic_feedback and not critic_feedback.startswith("PASS"):
+            issue_title = f"Root Critic Alert: Review Needed on Commit {metadata['commit']}"
+            issue_body = f"### Agent Feedback:\n{critic_feedback}\n\n**Commit Message:** {metadata['message']}"
+            create_github_issue(issue_title, issue_body)
         
         if analysis:
             update_manifest(analysis, critic_feedback)
+            root_memory.add_memory(text=f"Analysis: {analysis}\nCritic: {critic_feedback}", metadata=metadata)
             
-            memory_saved = root_memory.add_memory(
-                text=f"Analysis: {analysis}\nCritic: {critic_feedback}", 
-                metadata=metadata
-            )
+            print("✅ [Root] Continuous Context Loop Completed.")
             
-            if memory_saved:
-                print("✅ [Root] Continuous Context Loop Completed Successfully.")
-                
-            # שליפה ושמירה של המשימות החדשות עבור יומן ההיסטוריה
+            # הרצת מערכת המשימות והיומן המעוצב
             proposed_tasks = propose_improvements(root_memory)
-            
-            # הרצת מערכת היומן החדשה
             update_history_log(critic_feedback, proposed_tasks)
-            
         else:
-            print("⚠️ [Root] Update aborted due to API error. Files preserved.")
+            print("⚠️ [Root] Update aborted due to API error.")
     else:
-        print("ℹ️ [Root] No structural changes found. Commit some files first.")
+        print("ℹ️ [Root] No structural changes found.")
 # =====
