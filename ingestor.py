@@ -256,7 +256,13 @@ def propose_improvements(root_memory):
 # =====
 
 # =====
+# =====
 if __name__ == "__main__":
+    # 🚀 צופה פני עתיד: התנעה עצמית - אם היומן לא קיים, ניצור אותו מיד כדי שגיטהאב יוכל לעקוב אחריו
+    if not os.path.exists("HISTORY.md"):
+        print("[History] Initializing missing HISTORY.md file for tracking...")
+        update_history_log("אתחול מערכת ראשוני - יומן היסטורי נוצר בהצלחה (System Boot).", [])
+
     diff, metadata = get_git_info()
     
     if diff:
