@@ -1,7 +1,8 @@
 
 # ROOT - Project Manifest 🌳
 > **Tagline:** The Proactive Context Layer for Autonomous AI Agents.
-> **Status:** Last Update - The code diff adds the installation of the `numpy` library to the GitHub Actions workflow, suggesting that the project now relies on `numpy` for its operations, which could indicate an expansion in functionality requiring numerical computations or data manipulation.
+> **Status:** Last Update - This code update introduces a caching mechanism for vector memory in GitHub Actions, adds vector memory integration for historical context reference in both synthesis and critic processes, and enhances GitHub issue creation for critic feedback. Additionally, it restructures command execution logic to securely use subprocess while removing the `RootBrain` dependency in `main.py`, and refines the memory storage process, enriching project capabilities for more robust automation and historical context utilization.
+> **Critic Alert:** The code diff introduces potential architectural and technical issues. Here are the key concerns:  1. **Comment Redundancy**: Many comments are overly verbose and repeated, cluttering the codebase without adding significant value.     2. **Cache Implementation**: The caching mechanism, while beneficial, seems to lack removal logic, potentially resulting in the persistence of outdated cache files.  3. **Error Handling**: There's a lack of robust error handling, especially in subprocess execution, which now includes a timeout but does not adequately handle all failure modes.  4. **Critical Warnings**: Removal of the brain module (`root_brain`) from `main.py` introduces inconsistency, as it's still referenced in related methods. This suggests incomplete refactoring.  5. **Code Duplication**: Similar patterns are reoccurring, especially at the start and end of methods, which could benefit from utility functions to streamline maintenance.  6. **Unhandled Newlines**: The lack of a newline at the end of files is non-compliant with POSIX standards, affecting code portability.  These points indicate that the changes could lead to increased technical debt and potential runtime issues.
 > 
 > [!IMPORTANT]
 > **זמני:** הפרויקט מנוהל ומפותח כרגע באופן בלעדי דרך **מכשיר נייד (Termux & Acode)**. סביבת העבודה תועבר למחשב (PC) בשלב מאוחר יותר. כל הליכי הריצה והבדיקה מותאמים כרגע לארכיטקטורת ARM/Android.
@@ -9,6 +10,14 @@
 ## 🎯 חזון ומטרה (Vision)
 Root היא תשתית ה-Agentic OS לניהול הקשר (Context) וזיכרון עבור סוכני AI. המערכת הופכת מאגרי קוד לישויות "מודעות לעצמן" המבטיחות שכל סוכן AI יבין מיידית את הארכיטקטורה והכוונות של הפרויקט.
 ## 🏗️ רכיבי ליבה (Core Components)
+## ⚙️ Architecture
+Root OS is structured as a Three-Layer system:
+
+1. **Memory Layer:** This layer is responsible for managing both short-term and long-term memory using markdown files and a vector database.
+2. **Brain Layer:** This layer interprets and processes data using LLMs to understand changes and provide context-aware analysis especially in code refactoring.
+3. **Bridge Layer:** It connects and extends Root’s capabilities to external agents by providing structured context ensuring they operate with coherent project architecture.
+
+ Root OS is now capable of autonomous code execution and self-correction.
 | רכיב | תיאור | טכנולוגיה |
 |---|---|---|
 | **Root Ingestor** | מנגנון קליטת שינויים מה-Git. מנתח Diffs ושינויי קבצים בזמן אמת. | Python / Git |
