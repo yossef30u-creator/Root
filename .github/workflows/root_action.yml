@@ -1,34 +1,43 @@
 # =====
-name: Root Continuous Context Ingestor
+name: Root Agentic OS - Continuous Ingestion
 
 on:
   push:
     branches:
-      - master  # 🔴 תוקן מ-main ל-master לפי הפרויקט שלך
-  workflow_dispatch: # מאפשר הפעלה ידנית לצורך סריקה מלאה
+      - master
+  workflow_dispatch:
+
+# 🚀 צופה פני עתיד: מניעת התנגשויות (מבטל ריצות קודמות אם דחפת קוד מהר מדי)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   update-context:
+    name: Ingest & Analyze
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # קריטי: מאפשר לסוכן לעדכן את ROOT.md בעצמו
-      issues: write    # קריטי: מאפשר פתיחת Issues על ידי ה-Critic
+      contents: write
+      issues: write
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # מוודא שה-AI יוכל לראות את ה-Diffs בין הגרסאות
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
+          cache: 'pip' # מאיץ התקנות בצורה חכמה
 
       - name: Cache Vector Memory
         uses: actions/cache@v4
         with:
-          path: ./root_memory
+          path: |
+            ./root_memory
+            memory.json
           key: root-memory-${{ runner.os }}-${{ github.sha }}
           restore-keys: |
             root-memory-${{ runner.os }}-
@@ -36,26 +45,38 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install openai python-dotenv numpy requests chromadb
+          # צופה פני עתיד: תמיכה גם בקובץ דרישות רשמי וגם בהתקנה כפויה
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; else pip install openai python-dotenv numpy requests chromadb; fi
 
-      - name: Run Root Ingestor
+      - name: Run Root Agent
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-          UI_LANGUAGE: Hebrew  # 🔴 קריטי כדי שהסוכן ימשיך לפתוח Issues בעברית
+          UI_LANGUAGE: Hebrew
         run: python ingestor.py
 
-      - name: Commit and Push Manifest Changes
+      - name: Safe Commit and Sync
         run: |
-          git config --local user.email "root-agent@github.com"
-          git config --local user.name "Root-Agent"
+          # שימוש בזהות הרשמית והמאובטחת של בוטים בגיטהאב
+          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
           
-          # סנכרון למניעת התנגשויות
-          git pull origin master --rebase # 🔴 תוקן ל-master
+          # 1. איסוף מדויק של השינויים שהסוכן יצר (מניפסט וזיכרון)
+          git add ROOT.md memory.json root_memory/ 2>/dev/null || true
           
-          # דחיפת קובץ המניפסט והזיכרון
-          git add ROOT.md memory.json || true
-          git commit -m "🤖 Root: Auto-update Architecture Context & Memory [skip ci]" || echo "No changes to commit"
-          git push origin HEAD:master --force # 🔴 תוקן ל-master
+          # 2. בדיקה חכמה - אם אין שינויים, מסיים את הריצה בהצלחה בלי לזרוק שגיאות
+          if git diff --staged --quiet; then
+            echo "✅ No updates to memory or manifest. Agent finished successfully."
+            exit 0
+          fi
+          
+          # 3. שמירת השינויים (Commit)
+          git commit -m "🤖 Root Agent: Auto-update architecture context & memory [skip ci]"
+          
+          # 4. משיכת שינויים מהשרת בצורה בטוחה כדי למנוע התנגשויות (Rebase)
+          git pull origin master --rebase
+          
+          # 5. דחיפה חלקה לשרת
+          git push origin master
 # =====
