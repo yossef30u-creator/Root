@@ -1,3 +1,20 @@
+# =====
+# הגדרת נתיבי עבודה מדויקים
+PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
+os.chdir(PROJECT_DIR)
+
+# וידוא שקובצי הגדרה ו-API קיימים
+# שים לב: כאן אנחנו מושכים ישירות מ-Config כדי שה-.env יעבוד גם בטרמינל
+GITHUB_TOKEN = Config.GITHUB_TOKEN
+REPO_NAME = Config.GITHUB_REPOSITORY
+
+if not Config.OPENAI_API_KEY:
+    print("❌ [Critical Error] API Key missing! Check your .env file.")
+    exit(1)
+# =====
+
+
+
 #!/usr/bin/env python3
 # =====
 import os
@@ -92,8 +109,16 @@ def create_github_issue(title, body, labels=None):
 # =====
 def analyze_diff(diff_text):
     """(Synthesis) מנתח את ההשפעה הארכיטקטונית בעזרת ה-LLM"""
+    # חיתוך הטקסט כדי לא לעבור את מגבלת ה-Context (צופה פני עתיד)
+    if len(diff_text) > 40000:
+        diff_text = diff_text[:40000] + "\n\n[... Diff truncated for context limits ...]"
+
     print(f"[Root] Analyzing semantic impact with {Config.MODEL}...")
-    prompt = f"Analyze this code diff and provide a short, 1-2 sentence summary of its impact on the project architecture. Focus on logic and structure:\n\n{diff_text}"
+    
+    # צופה פני עתיד: שליפת שפת הממשק מההגדרות (ברירת מחדל: אנגלית)
+    target_lang = getattr(Config, 'UI_LANGUAGE', 'English')
+    
+    prompt = f"Analyze this code diff and provide a short, 1-2 sentence summary of its impact on the project architecture. Focus on logic and structure. The summary MUST be written in {target_lang}:\n\n{diff_text}"
     
     try:
         response = client.chat.completions.create(
@@ -109,13 +134,20 @@ def analyze_diff(diff_text):
 # =====
 def run_critic(diff_text, past_context=""):
     """(Critic) מבקר את הקוד תוך התחשבות בזיכרון קודם מהפרויקט"""
+    # חיתוך הטקסט כדי לא לעבור את מגבלת ה-Context (צופה פני עתיד)
+    if len(diff_text) > 40000:
+        diff_text = diff_text[:40000] + "\n\n[... Diff truncated for context limits ...]"
+
     print(f"[Root Critic] Reviewing code quality with historical context...")
+    
+    # צופה פני עתיד: התאמת שפת הביקורת
+    target_lang = getattr(Config, 'UI_LANGUAGE', 'English')
     
     context_instruction = ""
     if past_context:
         context_instruction = f"\n\nConsider this historical context from the project's memory when evaluating:\n{past_context}"
 
-    critic_prompt = f"As the Root Critic, analyze this code diff. If it aligns with the project goals and has no architectural issues, output ONLY the word 'PASS'. Otherwise, concisely report the inconsistencies or technical debt.{context_instruction}\n\nDiff:\n{diff_text}"
+    critic_prompt = f"As the Root Critic, analyze this code diff. If it aligns with the project goals and has no architectural issues, output ONLY the word 'PASS'. Otherwise, concisely report the inconsistencies or technical debt. Your detailed report MUST be written in {target_lang}.{context_instruction}\n\nDiff:\n{diff_text}"
     
     try:
         response = client.chat.completions.create(
@@ -157,6 +189,9 @@ def propose_improvements(root_memory):
     """(Proactive) סורק את המערכת ומציע שיפורים עתידיים כ-Issues בגיטהאב"""
     print("[Root Proactive] Brainstorming future improvements...")
     
+    # צופה פני עתיד: יצירת משימות בשפת היעד
+    target_lang = getattr(Config, 'UI_LANGUAGE', 'English')
+    
     try:
         # שליפת חולשות ויעדים ארכיטקטוניים מהזיכרון
         context_results = root_memory.search_memory("project architecture constraints weaknesses roadmap features", top_k=5)
@@ -172,6 +207,7 @@ def propose_improvements(root_memory):
         
         Identify gaps and suggest 1 to 2 technical improvements (e.g., refactoring, missing features, security).
         Return ONLY a JSON object with a 'tasks' key containing an array of objects. Each object must have a 'title' and 'description'.
+        The 'title' and 'description' MUST be written in {target_lang}.
         """
 
         response = client.chat.completions.create(
