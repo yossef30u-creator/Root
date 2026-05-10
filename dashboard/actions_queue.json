@@ -1,1 +1,22 @@
-[]
+[
+    {
+        "id": "cmd_1e878141",
+        "type": "GENERATE_ROADMAP",
+        "target_id": "global",
+        "payload": {
+            "idea": "מה המצב כרגע"
+        },
+        "timestamp": 1778429417.069375,
+        "status": "pending"
+    },
+    {
+        "id": "cmd_c6315e95",
+        "type": "GENERATE_ROADMAP",
+        "target_id": "global",
+        "payload": {
+            "idea": "מה המצב כרגע"
+        },
+        "timestamp": 1778430197.1967165,
+        "status": "pending"
+    }
+]

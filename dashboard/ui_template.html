@@ -2,203 +2,326 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Root OS | מרכז פיקוד מפלצתי</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Root OS | Unified Intelligence</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+    
     <style>
-        body { background-color: #030305; color: #e2e8f0; font-family: 'Inter', sans-serif; overflow-x: hidden; }
-        .glass-card { background: rgba(20, 20, 25, 0.7); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 24px; box-shadow: 0 10px 40px rgba(0,0,0,0.6); }
-        .neon-text { text-shadow: 0 0 15px rgba(0, 210, 255, 0.6); color: #00d2ff; }
-        .neon-border { border: 1px solid rgba(0, 210, 255, 0.2); }
-        .btn-execute { background: linear-gradient(135deg, #00d2ff 0%, #1c52b5 100%); transition: 0.3s; }
-        .btn-execute:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(0, 210, 255, 0.4); }
-        .btn-bulk { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); transition: 0.3s; box-shadow: 0 0 15px rgba(245, 158, 11, 0.2); }
-        .checkbox-custom { width: 22px; height: 22px; accent-color: #00d2ff; cursor: pointer; border-radius: 6px; }
-        .task-card { transition: all 0.2s; border: 1px solid rgba(255,255,255,0.05); }
-        .task-card:hover { background: rgba(255,255,255,0.08); border-color: rgba(0, 210, 255, 0.2); }
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-thumb { background: #1a1a1c; border-radius: 10px; }
+        :root {
+            --bg-base: #020204;
+            --bg-glass: rgba(12, 12, 18, 0.75);
+            --cyan-glow: rgba(0, 210, 255, 0.4);
+            --border-dim: rgba(255, 255, 255, 0.08);
+        }
+
+        /* נעילה מוחלטת של גוף הדף למסך */
+        body { 
+            background-color: var(--bg-base); 
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(0, 210, 255, 0.03), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(168, 85, 247, 0.03), transparent 25%);
+            color: #e2e8f0; 
+            font-family: 'Inter', sans-serif; 
+            height: 100dvh; /* גובה דינמי שמתחשב בדפדפן מובייל */
+            width: 100vw;
+            margin: 0;
+            padding: 0;
+            display: flex; 
+            flex-direction: column; 
+            overflow: hidden; /* מונע גלילה של כל הדף */
+        }
+
+        .glass-panel { 
+            background: var(--bg-glass); 
+            backdrop-filter: blur(24px); 
+            -webkit-backdrop-filter: blur(24px);
+        }
+
+        .neon-text { text-shadow: 0 0 12px var(--cyan-glow); color: #00d2ff; }
+        .font-code { font-family: 'JetBrains Mono', monospace; }
+
+        /* Scrollbar נקי וצר */
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #2a2a30; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #00d2ff; }
+
+        /* מבנה הצאט */
+        .msg-row { display: flex; width: 100%; margin-bottom: 1.5rem; }
+        .msg-row.user { justify-content: flex-end; }
+        .msg-row.bot { justify-content: flex-start; }
+        .msg-row.system { justify-content: center; margin-bottom: 1rem; }
+
+        .bubble { 
+            max-width: 85%; 
+            padding: 1rem 1.25rem; 
+            font-size: 0.9rem; 
+            line-height: 1.6; 
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            word-wrap: break-word;
+        }
+        
+        .bubble-user { 
+            background: linear-gradient(145deg, #0f111a, #0a0b10);
+            border: 1px solid rgba(0, 210, 255, 0.2); 
+            border-radius: 18px 18px 4px 18px; 
+            color: #f8fafc; 
+        }
+
+        .bubble-bot { 
+            background: linear-gradient(145deg, #09090b, #050505);
+            border: 1px solid var(--border-dim); 
+            border-radius: 18px 18px 18px 4px; 
+            color: #cbd5e1; 
+        }
+
+        .bubble-system {
+            background: transparent;
+            border: 1px dashed rgba(255,255,255,0.15);
+            border-radius: 8px;
+            padding: 0.5rem 1rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: #64748b;
+            text-align: center;
+            max-width: 90%;
+        }
+
+        .bubble-system.success { color: #10b981; border-color: rgba(16, 185, 129, 0.3); background: rgba(16, 185, 129, 0.05); }
+        .bubble-system.error { color: #ef4444; border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.05); }
+
+        /* עיצוב התוכן של ה-Markdown */
+        .prose pre { background: #0d1117 !important; border: 1px solid #30363d; border-radius: 8px; padding: 1rem; margin: 1rem 0; overflow-x: auto; direction: ltr; }
+        .prose code { font-family: 'JetBrains Mono', monospace; font-size: 0.85em; }
+        .prose p:not(:last-child) { margin-bottom: 1rem; }
+        .prose ul { list-style-type: disc; margin-right: 1.5rem; margin-bottom: 1rem; }
+        .prose ol { list-style-type: decimal; margin-right: 1.5rem; margin-bottom: 1rem; }
+        .prose strong { color: #fff; font-weight: 700; }
+        .prose a { color: #00d2ff; text-decoration: underline; text-underline-offset: 4px; }
+
+        /* אנימציית הקלדה */
+        .typing-indicator { display: flex; gap: 4px; align-items: center; padding: 0.5rem 1rem; }
+        .typing-dot { width: 6px; height: 6px; background-color: #00d2ff; border-radius: 50%; animation: typePulse 1.4s infinite ease-in-out both; }
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes typePulse { 0%, 80%, 100% { transform: scale(0); opacity: 0.3; } 40% { transform: scale(1); opacity: 1; } }
+
+        /* תיבת טקסט ננעלת למטה */
+        .input-area-container {
+            flex-shrink: 0;
+            border-top: 1px solid var(--border-dim);
+            background: rgba(5, 5, 8, 0.95);
+        }
+        
+        .input-wrapper { transition: all 0.2s ease; border: 1px solid var(--border-dim); }
+        .input-wrapper:focus-within { border-color: rgba(0, 210, 255, 0.4); box-shadow: 0 0 15px rgba(0, 210, 255, 0.05); }
     </style>
 </head>
-<body class="p-4 md:p-8 max-w-6xl mx-auto">
+<body>
 
-    <header class="flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
-        <div class="text-right">
-            <h1 class="text-5xl font-black italic neon-text tracking-tighter">ROOT <span class="text-white">OS</span></h1>
-            <p class="text-gray-500 text-[11px] uppercase tracking-widest font-bold mt-1">ניהול סוכנים אוטונומי 2026</p>
+    <header class="flex-none flex justify-between items-center py-3 px-4 border-b border-white/5">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-[0_0_15px_rgba(0,210,255,0.3)]">
+                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+            </div>
+            <div>
+                <h1 class="text-xl md:text-2xl font-black italic tracking-tighter">ROOT <span class="neon-text">OS</span></h1>
+                <p class="text-gray-500 text-[9px] uppercase font-bold tracking-widest hidden md:block">v4.0 Autonomous</p>
+            </div>
         </div>
         
-        <div class="flex gap-4">
-            <div class="glass-card px-8 py-3 flex flex-col items-center border-yellow-500/20 min-w-[140px]">
-                <span class="text-[10px] text-yellow-500 font-bold uppercase tracking-tighter mb-1">יתרת קרדיטים</span>
-                <div class="flex items-center gap-2">
-                    <span id="credit-balance" class="text-3xl font-black text-white">1,000</span>
-                    <span class="text-yellow-500 font-bold text-sm">Cr</span>
-                </div>
+        <div class="flex gap-2 items-center">
+            <div class="glass-panel px-3 py-1.5 rounded-lg flex items-center gap-2 border border-yellow-500/20">
+                <svg class="w-3.5 h-3.5 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <span id="credit-balance" class="text-xs font-code font-bold text-white">---</span>
             </div>
-            <div class="glass-card px-5 py-3 flex items-center border-green-500/10">
-                <div id="status-led" class="w-3 h-3 rounded-full bg-green-500 animate-pulse ml-3"></div>
-                <span id="status-text" class="text-xs font-bold text-gray-300">מחובר לליבה</span>
+            <select id="model-selector" onchange="updateModel()" class="glass-panel rounded-lg py-1.5 px-2 text-[10px] md:text-xs text-gray-300 font-code outline-none cursor-pointer max-w-[100px] md:max-w-none">
+            </select>
+            <div class="p-1.5 flex items-center justify-center">
+                <div id="status-led" class="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_#10b981]"></div>
             </div>
         </div>
     </header>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <main class="flex-1 flex flex-col overflow-hidden m-2 md:m-4 mt-2 rounded-2xl border border-white/10 glass-panel shadow-2xl">
         
-        <div class="lg:col-span-2 space-y-6">
-            <section class="glass-card p-6 neon-border">
-                <h3 class="text-xs font-bold text-cyan-400 mb-5 uppercase tracking-widest flex items-center">
-                    <span class="ml-2 text-lg">🤖</span> בורר סוכן ביצוע (AI Core)
-                </h3>
-                <select id="model-selector" onchange="updateModel()" class="w-full bg-black/50 border border-white/10 rounded-2xl p-4 text-white font-bold outline-none focus:border-cyan-500 transition-all cursor-pointer shadow-inner">
-                    </select>
-                <div class="mt-8 border-t border-white/5 pt-6">
-                    <h4 class="text-[10px] text-gray-500 font-bold uppercase mb-3">ניתוח סמנטי פעיל</h4>
-                    <div id="analysis-box" class="text-sm text-gray-300 leading-relaxed bg-black/20 p-4 rounded-xl border border-white/5">
-                        ממתין לסריקת קוד...
-                    </div>
+        <div id="chat-messages" class="flex-1 overflow-y-auto p-4 md:p-6 scroll-smooth relative">
+            <div class="msg-row bot">
+                <div class="bubble bubble-bot prose">
+                    <p>מערכות הליבה הופעלו בהצלחה. <strong>Root OS באוויר.</strong></p>
+                    <p>אני מוכנה לבנות ארכיטקטורה, לכתוב קוד, או לנתח את הפרויקט הנוכחי. מה המטרה שלנו להיום?</p>
                 </div>
-            </section>
-
-            <section class="glass-card p-6">
-                <h3 class="text-[11px] font-bold text-gray-500 mb-4 uppercase tracking-widest">יומן פעולות (Terminal Log)</h3>
-                <div id="history-log" class="font-code text-[11px] text-blue-300/70 h-48 overflow-y-auto space-y-2 bg-black/40 p-4 rounded-2xl border border-white/5 shadow-inner">
-                </div>
-            </section>
+            </div>
+        </div>
+        
+        <div id="typing-indicator" class="hidden w-full px-6 py-2 bg-gradient-to-t from-[rgba(5,5,8,0.95)] to-transparent">
+            <div class="typing-indicator">
+                <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
+                <span class="text-[10px] font-code text-cyan-400 ml-2">הסוכן מעבד...</span>
+            </div>
         </div>
 
-        <div class="space-y-6">
-            <section class="glass-card p-6 border-white/10 flex flex-col h-full">
-                <div class="flex justify-between items-center mb-8">
-                    <h3 class="text-sm font-black text-white italic tracking-tight">משימות (ROADMAP)</h3>
-                    <button id="bulk-btn" onclick="execSelected()" class="hidden btn-bulk px-4 py-2 rounded-xl text-[10px] font-black text-white uppercase shadow-lg animate-bounce">
-                        בצע נבחרות
-                    </button>
-                </div>
-                
-                <div id="task-list" class="space-y-4 overflow-y-auto max-h-[600px] pr-2">
-                    <div class="text-center py-12 text-gray-600 text-xs italic">טוען משימות...</div>
-                </div>
-            </section>
-        </div>
+        <div class="input-area-container p-3 md:p-4">
+            <div class="input-wrapper bg-[#0a0a0f] rounded-xl px-2 py-1 flex items-end gap-2">
+                <textarea id="chat-input" 
+                          placeholder="הזן פקודה או רעיון... (Shift+Enter לשורה חדשה)" 
+                          class="flex-1 bg-transparent max-h-32 min-h-[40px] py-2.5 px-2 text-sm text-white outline-none resize-none overflow-y-auto" 
+                          rows="1"></textarea>
 
-    </div>
+                <button onclick="sendMessage()" class="p-2.5 mb-1 rounded-lg bg-cyan-600/20 text-cyan-400 hover:bg-cyan-500 hover:text-black transition-all group shrink-0">
+                    <svg class="w-5 h-5 transform rotate-90 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+                </button>
+            </div>
+        </div>
+    </main>
 
     <script>
         const API = "http://127.0.0.1:5050/api";
-        let selectedTasks = new Set();
         let creditsPerTask = 0;
+        let lastHistoryTimestamp = 0;
+        let isWaitingForResponse = false;
+
+        marked.setOptions({
+            highlight: function(code, lang) {
+                const language = hljs.getLanguage(lang) ? lang : 'plaintext';
+                return hljs.highlight(code, { language }).value;
+            },
+            breaks: true
+        });
 
         async function sync() {
             try {
                 const r = await fetch(`${API}/state`);
                 const data = await r.json();
                 
-                // 1. עדכון יתרת קרדיטים
                 document.getElementById('credit-balance').innerText = (data.user_credits || 0).toLocaleString();
-                
-                // 2. עדכון תיבת הניתוח
-                document.getElementById('analysis-box').innerText = data.root.latest_analysis || "סורק את הפרויקט לזיהוי שיפורים...";
 
-                // 3. בניית סלקטור המודלים (פעם אחת בלבד)
                 const sel = document.getElementById('model-selector');
                 if (sel.options.length === 0 && data.pricing) {
                     Object.entries(data.pricing).forEach(([id, info]) => {
-                        sel.add(new Option(`${info.label} — ${info.cost_per_action} Cr`, id));
+                        sel.add(new Option(info.label.split('(')[0].trim(), id));
                     });
                     sel.value = data.selected_model || Object.keys(data.pricing)[0];
                 }
                 
-                if (data.pricing && sel.value) {
-                    creditsPerTask = data.pricing[sel.value].cost_per_action;
-                }
-
-                // 4. רינדור Roadmap עם Checkboxes ותגי מחיר
-                const tList = document.getElementById('task-list');
-                const activeTasks = (data.roadmap || []).filter(t => t.status !== 'completed');
-                
-                if (activeTasks.length > 0) {
-                    tList.innerHTML = '';
-                    activeTasks.forEach(t => {
-                        const isChecked = selectedTasks.has(t.id);
-                        const div = document.createElement('div');
-                        div.className = `task-card p-4 rounded-2xl flex items-center gap-4 cursor-pointer ${isChecked ? 'bg-cyan-500/10 border-cyan-500/30' : 'bg-white/5'}`;
-                        div.onclick = (e) => { if(e.target.type !== 'checkbox') toggleTask(t.id); };
-                        
-                        div.innerHTML = `
-                            <input type="checkbox" class="checkbox-custom" onclick="event.stopPropagation(); toggleTask('${t.id}')" ${isChecked ? 'checked' : ''}>
-                            <div class="flex-1 text-right">
-                                <div class="text-[13px] font-bold text-white mb-1 leading-tight">${t.title}</div>
-                                <div class="text-[10px] text-yellow-500 font-code font-bold opacity-80">עלות: ${creditsPerTask} Cr</div>
-                            </div>
-                        `;
-                        tList.appendChild(div);
+                if (data.history && data.history.length > 0) {
+                    let addedNew = false;
+                    data.history.forEach(log => {
+                        if (log.timestamp > lastHistoryTimestamp) {
+                            classifyAndRenderMessage(log);
+                            lastHistoryTimestamp = log.timestamp;
+                            addedNew = true;
+                        }
                     });
-                } else {
-                    tList.innerHTML = '<div class="text-center py-10 text-gray-700 text-xs font-bold">אין משימות ממתינות.</div>';
-                }
 
-                // 5. ניהול כפתור ה-Bulk
-                const bulkBtn = document.getElementById('bulk-btn');
-                if (selectedTasks.size > 0) {
-                    bulkBtn.classList.remove('hidden');
-                    bulkBtn.innerHTML = `בצע ${selectedTasks.size} משימות <br> <span class="text-[9px] opacity-80">(${selectedTasks.size * creditsPerTask} קרדיטים)</span>`;
-                } else {
-                    bulkBtn.classList.add('hidden');
+                    if (addedNew) {
+                        setTypingIndicator(false);
+                        scrollToBottom();
+                    }
                 }
-
-                // 6. עדכון היסטוריה עם תיקון תאריך
-                const hLog = document.getElementById('history-log');
-                if (data.history) {
-                    hLog.innerHTML = data.history.slice().reverse().map(l => {
-                        const time = l.timestamp ? new Date(l.timestamp * 1000).toLocaleTimeString('he-IL') : '--:--';
-                        return `<div class="border-b border-white/5 pb-2"><span class="opacity-30 ml-2 font-mono">[${time}]</span> ${l.message}</div>`;
-                    }).join('');
-                }
-
-            } catch (e) { 
-                document.getElementById('status-text').innerText = "שגיאת רשת";
-                document.getElementById('status-led').className = "w-3 h-3 rounded-full bg-red-500";
+            } catch (e) {
+                document.getElementById('status-led').classList.replace('bg-green-500', 'bg-red-500');
             }
         }
 
-        function toggleTask(id) {
-            if (selectedTasks.has(id)) selectedTasks.delete(id);
-            else selectedTasks.add(id);
-            sync(); // רענון מהיר
+        function classifyAndRenderMessage(log) {
+            const container = document.getElementById('chat-messages');
+            let text = log.message;
+            let type = 'bot'; 
+            let statusClass = '';
+
+            if (text.startsWith("המשתמש הזין רעיון:") || text.startsWith("User:")) {
+                type = 'user';
+                text = text.replace("המשתמש הזין רעיון: ", "").replace("User: ", "");
+            } 
+            else if (text.includes("שגיאה") || text.includes("נכשל") || text.includes("Error") || text.includes("❌")) {
+                type = 'system';
+                statusClass = 'error';
+            }
+            else if (text.includes("הושלם") || text.includes("נכתב בהצלחה") || text.includes("✅") || text.includes("Cr)")) {
+                type = 'system';
+                statusClass = 'success';
+            }
+            else if (text.includes("מתחיל ביצוע") || text.includes("מנתח רעיון") || text.includes("סוכן")) {
+                type = 'system';
+            }
+
+            const row = document.createElement('div');
+            row.className = `msg-row ${type}`;
+
+            if (type === 'system') {
+                row.innerHTML = `<div class="bubble-system ${statusClass}">${text}</div>`;
+            } else {
+                const parsedContent = type === 'bot' ? marked.parse(text) : escapeHtml(text);
+                row.innerHTML = `<div class="bubble bubble-${type} ${type === 'bot' ? 'prose' : ''}">${parsedContent}</div>`;
+            }
+
+            container.appendChild(row);
+        }
+
+        function escapeHtml(unsafe) {
+            return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;").replace(/\n/g, "<br>");
+        }
+
+        function scrollToBottom() {
+            const container = document.getElementById('chat-messages');
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function setTypingIndicator(show) {
+            isWaitingForResponse = show;
+            document.getElementById('typing-indicator').classList.toggle('hidden', !show);
+            if (show) scrollToBottom();
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+            if (!message || isWaitingForResponse) return;
+
+            classifyAndRenderMessage({ timestamp: Date.now() / 1000, message: `User: ${message}` });
+            input.value = '';
+            input.style.height = '40px';
+            scrollToBottom();
+            setTypingIndicator(true);
+
+            try {
+                await fetch(`${API}/action`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({type: 'GENERATE_ROADMAP', payload: {idea: message}})
+                });
+            } catch (e) {
+                setTypingIndicator(false);
+                classifyAndRenderMessage({ timestamp: Date.now() / 1000, message: `❌ שגיאת תקשורת עם הליבה.` });
+            }
         }
 
         async function updateModel() {
             const model = document.getElementById('model-selector').value;
-            await fetch(`${API}/settings`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({model})
-            });
+            await fetch(`${API}/settings`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({model}) });
             sync();
         }
 
-        async function execSelected() {
-            const total = selectedTasks.size * creditsPerTask;
-            if (confirm(`להפעיל סוכן ביצוע על ${selectedTasks.size} משימות? \nעלות כוללת: ${total} קרדיטים.`)) {
-                const tasksArray = Array.from(selectedTasks);
-                for (const taskId of tasksArray) {
-                    await fetch(`${API}/action`, {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({type: 'EXECUTE_TASK', target_id: taskId, payload: {cost: creditsPerTask}})
-                    });
-                }
-                selectedTasks.clear();
-                alert("הפקודות נשלחו לביצוע!");
-                sync();
+        const tx = document.getElementById('chat-input');
+        tx.addEventListener("input", function() {
+            this.style.height = "40px";
+            this.style.height = (this.scrollHeight) + "px";
+        });
+        
+        tx.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
             }
-        }
+        });
 
-        // דופק מערכת מהיר
-        setInterval(sync, 2500);
         sync();
+        setInterval(sync, 1500); 
     </script>
 </body>
 </html>

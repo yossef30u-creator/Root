@@ -1,15 +1,18 @@
+```python
 #!/usr/bin/env python3
 import os
 import json
 import time
+import uuid
 from datetime import datetime
 
-# ייבוא הלוגיקה של הסוכן (המתכנת האוטונומי)
+# ייבוא הלוגיקה של הסוכן (המתכנת האוטונומי + הארכיטקט)
 try:
-    from agent_coder import execute_task_logic
+    from agent_coder import execute_task_logic, generate_roadmap_strategy
 except ImportError:
-    # הוספנו תמיכה בקבלת פרמטר 'model'
+    # טיפול בשגיאות אם הקובץ או הפונקציות חסרות
     def execute_task_logic(title, model): return False, "Agent Coder not found"
+    def generate_roadmap_strategy(idea, model): return False, "Agent Architect not found"
 
 # הגדרת נתיבים בתוך תיקיית ה-Dashboard
 DASHBOARD_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -42,21 +45,17 @@ def sync_state():
     print("🔄 [Dashboard Brain] מעבד נתונים חדשים ממוח הקבצים...")
     core_data = load_json(CORE_DUMP_FILE, {})
     
-    # טוען את המצב הקיים כדי לא לדרוס קרדיטים והגדרות מודל
     state = load_json(STATE_FILE, {"system_status": "idle", "root": {}, "roadmap": [], "history": [], "user_credits": 1000})
     state["last_updated"] = datetime.now().isoformat()
     
-    # עדכון ניתוח ה-Root
     if "analysis" in core_data:
         state["root"]["latest_analysis"] = core_data["analysis"]
     
-    # עדכון ה-Critic
     if "critic" in core_data:
         critic = core_data["critic"]
         state["root"]["critic_status"] = "FAIL" if critic and "PASS" not in critic else "PASS"
         state["root"]["critic_alerts"] = [critic] if critic and "PASS" not in critic else []
     
-    # עדכון משימות חדשות ב-Roadmap
     if "proposed_tasks" in core_data and core_data["proposed_tasks"]:
         existing_titles = {t.get("title") for t in state.get("roadmap", [])}
         for task_title in core_data["proposed_tasks"]:
@@ -70,11 +69,8 @@ def sync_state():
 
     save_json(STATE_FILE, state)
     
-    try:
-        os.remove(CORE_DUMP_FILE)
-    except:
-        pass
-    print("✅ [Dashboard Brain] ה-Manifest עודכן בהצלחה.")
+    try: os.remove(CORE_DUMP_FILE)
+    except: pass
 
 def process_actions():
     """סורק את תור הפקודות, בודק קרדיטים, ומפעיל את הסוכן."""
@@ -86,7 +82,6 @@ def process_actions():
     state_changed = False
     remaining_actions = []
 
-    # שולף את המודל שהמשתמש בחר מהדשבורד (ברירת מחדל: קלוד)
     selected_model = state.get("selected_model", "anthropic/claude-3.5-sonnet")
 
     for action in actions:
@@ -95,8 +90,10 @@ def process_actions():
             target_id = action.get("target_id")
             cost = action.get("payload", {}).get("cost", 0)
 
+            # ---------------------------------------------------------
+            # 1. מצב ביצוע (כתיבת קוד למשימה קיימת)
+            # ---------------------------------------------------------
             if action_type == "EXECUTE_TASK":
-                # בדיקת תקציב לפני ביצוע
                 if state.get("user_credits", 0) >= cost:
                     task_to_run = "משימה לא ידועה"
                     for task in state.get("roadmap", []):
@@ -109,12 +106,8 @@ def process_actions():
                     save_json(STATE_FILE, state)
                     
                     print(f"🛠️ [Dashboard Brain] מזניק את הסוכן לביצוע: {task_to_run}")
-                    print(f"🤖 מודל נבחר: {selected_model}")
-                    
-                    # הפעלת הסוכן ושליחת המודל הספציפי שנבחר!
                     success, info = execute_task_logic(task_to_run, model=selected_model)
                     
-                    # גביית התשלום
                     state["user_credits"] -= cost
                     
                     for task in state.get("roadmap", []):
@@ -124,28 +117,65 @@ def process_actions():
                     
                     state.setdefault("history", []).append({
                         "timestamp": time.time(),
-                        "message": f"הושלם ({selected_model.split('/')[-1]}): {task_to_run} (-{cost} Cr)"
+                        "message": f"✅ הושלם ({selected_model.split('/')[-1]}): {task_to_run} (-{cost} Cr)" if success else f"❌ שגיאה בביצוע: {info}"
                     })
                     
                     action["status"] = "completed"
                     state_changed = True
-                    print(f"💰 [Brain] פעולה הושלמה. יתרה מעודכנת: {state['user_credits']} Cr")
                 else:
-                    print(f"⚠️ [Brain] נדחה: אין מספיק קרדיטים לפעולה.")
                     state.setdefault("history", []).append({
                         "timestamp": time.time(),
-                        "message": "שגיאת תקציב: אין מספיק קרדיטים לביצוע הפעולה."
+                        "message": "❌ שגיאת תקציב: אין מספיק קרדיטים לביצוע הפעולה."
                     })
                     action["status"] = "failed"
                     state_changed = True
+
+            # ---------------------------------------------------------
+            # 2. מצב ארכיטקט (הפיכת רעיון מהצאט לתוכנית עבודה)
+            # ---------------------------------------------------------
+            elif action_type == "GENERATE_ROADMAP":
+                idea = action.get("payload", {}).get("idea", "רעיון לא מוגדר")
+                print(f"🧬 [Architect] מתחיל תכנון אסטרטגי עבור: {idea}")
+                
+                state["system_status"] = "busy"
+                # --- התוספת החשובה: עדכון הצאט **לפני** שה-AI מתחיל לחשוב ---
+                state.setdefault("history", []).append({
+                    "timestamp": time.time(),
+                    "message": f"⏳ מתחבר ל-AI כדי לנתח את הרעיון..."
+                })
+                save_json(STATE_FILE, state) 
+
+                # קריאה לסוכן המתכנן
+                success, tasks = generate_roadmap_strategy(idea, model=selected_model)
+
+                if success and isinstance(tasks, list):
+                    for t_title in tasks:
+                        state.setdefault("roadmap", []).append({
+                            "id": f"task_{int(time.time())}_{uuid.uuid4().hex[:4]}",
+                            "title": t_title,
+                            "status": "pending",
+                            "created_at": datetime.now().isoformat()
+                        })
+                    
+                    state.setdefault("history", []).append({
+                        "timestamp": time.time(),
+                        "message": f"✅ הארכיטקט פירק את הרעיון שלך ל-{len(tasks)} משימות ביצוע חדשות ב-Roadmap."
+                    })
+                else:
+                    # אם יש שגיאת API, נראה אותה בצאט!
+                    state.setdefault("history", []).append({
+                        "timestamp": time.time(),
+                        "message": f"❌ ה-AI נכשל בתכנון: {tasks}"
+                    })
+                
+                action["status"] = "completed"
+                state_changed = True
 
         remaining_actions.append(action)
 
     if state_changed:
         state["system_status"] = "idle"
         save_json(STATE_FILE, state)
-        
-        # שמירת משימות שעדיין ממתינות (אם יש)
         pending_only = [a for a in remaining_actions if a['status'] == 'pending']
         save_json(ACTIONS_FILE, pending_only)
 
@@ -158,3 +188,6 @@ if __name__ == "__main__":
             time.sleep(1.5)
     except KeyboardInterrupt:
         print("\n🛑 [Dashboard Brain] סגירת מערכת.")
+
+
+```
