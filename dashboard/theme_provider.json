@@ -1,0 +1,29 @@
+{
+  "active_theme": "dark",
+  "themes": {
+    "dark": {
+      "bg_color": "#121212",
+      "card_bg": "#1e1e1e",
+      "text_main": "#e0e0e0",
+      "text_muted": "#888888",
+      "accent": "#4caf50",
+      "danger": "#f44336",
+      "border": "#333333"
+    },
+    "light": {
+      "bg_color": "#f5f5f5",
+      "card_bg": "#ffffff",
+      "text_main": "#212121",
+      "text_muted": "#757575",
+      "accent": "#2e7d32",
+      "danger": "#d32f2f",
+      "border": "#e0e0e0"
+    }
+  },
+  "integrations": {
+    "vscode_sync": {
+      "enabled": false,
+      "description": "כאשר דלוק, הממשק ינסה לשאוב משתני CSS מסביבת העבודה במקום להשתמש בצבעים המוגדרים מעלה."
+    }
+  }
+}

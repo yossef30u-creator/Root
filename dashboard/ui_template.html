@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Root OS | מרכז פיקוד מפלצתי</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <style>
+        body { background-color: #030305; color: #e2e8f0; font-family: 'Inter', sans-serif; overflow-x: hidden; }
+        .glass-card { background: rgba(20, 20, 25, 0.7); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 24px; box-shadow: 0 10px 40px rgba(0,0,0,0.6); }
+        .neon-text { text-shadow: 0 0 15px rgba(0, 210, 255, 0.6); color: #00d2ff; }
+        .neon-border { border: 1px solid rgba(0, 210, 255, 0.2); }
+        .btn-execute { background: linear-gradient(135deg, #00d2ff 0%, #1c52b5 100%); transition: 0.3s; }
+        .btn-execute:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(0, 210, 255, 0.4); }
+        .btn-bulk { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); transition: 0.3s; box-shadow: 0 0 15px rgba(245, 158, 11, 0.2); }
+        .checkbox-custom { width: 22px; height: 22px; accent-color: #00d2ff; cursor: pointer; border-radius: 6px; }
+        .task-card { transition: all 0.2s; border: 1px solid rgba(255,255,255,0.05); }
+        .task-card:hover { background: rgba(255,255,255,0.08); border-color: rgba(0, 210, 255, 0.2); }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #1a1a1c; border-radius: 10px; }
+    </style>
+</head>
+<body class="p-4 md:p-8 max-w-6xl mx-auto">
+
+    <header class="flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
+        <div class="text-right">
+            <h1 class="text-5xl font-black italic neon-text tracking-tighter">ROOT <span class="text-white">OS</span></h1>
+            <p class="text-gray-500 text-[11px] uppercase tracking-widest font-bold mt-1">ניהול סוכנים אוטונומי 2026</p>
+        </div>
+        
+        <div class="flex gap-4">
+            <div class="glass-card px-8 py-3 flex flex-col items-center border-yellow-500/20 min-w-[140px]">
+                <span class="text-[10px] text-yellow-500 font-bold uppercase tracking-tighter mb-1">יתרת קרדיטים</span>
+                <div class="flex items-center gap-2">
+                    <span id="credit-balance" class="text-3xl font-black text-white">1,000</span>
+                    <span class="text-yellow-500 font-bold text-sm">Cr</span>
+                </div>
+            </div>
+            <div class="glass-card px-5 py-3 flex items-center border-green-500/10">
+                <div id="status-led" class="w-3 h-3 rounded-full bg-green-500 animate-pulse ml-3"></div>
+                <span id="status-text" class="text-xs font-bold text-gray-300">מחובר לליבה</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        <div class="lg:col-span-2 space-y-6">
+            <section class="glass-card p-6 neon-border">
+                <h3 class="text-xs font-bold text-cyan-400 mb-5 uppercase tracking-widest flex items-center">
+                    <span class="ml-2 text-lg">🤖</span> בורר סוכן ביצוע (AI Core)
+                </h3>
+                <select id="model-selector" onchange="updateModel()" class="w-full bg-black/50 border border-white/10 rounded-2xl p-4 text-white font-bold outline-none focus:border-cyan-500 transition-all cursor-pointer shadow-inner">
+                    </select>
+                <div class="mt-8 border-t border-white/5 pt-6">
+                    <h4 class="text-[10px] text-gray-500 font-bold uppercase mb-3">ניתוח סמנטי פעיל</h4>
+                    <div id="analysis-box" class="text-sm text-gray-300 leading-relaxed bg-black/20 p-4 rounded-xl border border-white/5">
+                        ממתין לסריקת קוד...
+                    </div>
+                </div>
+            </section>
+
+            <section class="glass-card p-6">
+                <h3 class="text-[11px] font-bold text-gray-500 mb-4 uppercase tracking-widest">יומן פעולות (Terminal Log)</h3>
+                <div id="history-log" class="font-code text-[11px] text-blue-300/70 h-48 overflow-y-auto space-y-2 bg-black/40 p-4 rounded-2xl border border-white/5 shadow-inner">
+                </div>
+            </section>
+        </div>
+
+        <div class="space-y-6">
+            <section class="glass-card p-6 border-white/10 flex flex-col h-full">
+                <div class="flex justify-between items-center mb-8">
+                    <h3 class="text-sm font-black text-white italic tracking-tight">משימות (ROADMAP)</h3>
+                    <button id="bulk-btn" onclick="execSelected()" class="hidden btn-bulk px-4 py-2 rounded-xl text-[10px] font-black text-white uppercase shadow-lg animate-bounce">
+                        בצע נבחרות
+                    </button>
+                </div>
+                
+                <div id="task-list" class="space-y-4 overflow-y-auto max-h-[600px] pr-2">
+                    <div class="text-center py-12 text-gray-600 text-xs italic">טוען משימות...</div>
+                </div>
+            </section>
+        </div>
+
+    </div>
+
+    <script>
+        const API = "http://127.0.0.1:5050/api";
+        let selectedTasks = new Set();
+        let creditsPerTask = 0;
+
+        async function sync() {
+            try {
+                const r = await fetch(`${API}/state`);
+                const data = await r.json();
+                
+                // 1. עדכון יתרת קרדיטים
+                document.getElementById('credit-balance').innerText = (data.user_credits || 0).toLocaleString();
+                
+                // 2. עדכון תיבת הניתוח
+                document.getElementById('analysis-box').innerText = data.root.latest_analysis || "סורק את הפרויקט לזיהוי שיפורים...";
+
+                // 3. בניית סלקטור המודלים (פעם אחת בלבד)
+                const sel = document.getElementById('model-selector');
+                if (sel.options.length === 0 && data.pricing) {
+                    Object.entries(data.pricing).forEach(([id, info]) => {
+                        sel.add(new Option(`${info.label} — ${info.cost_per_action} Cr`, id));
+                    });
+                    sel.value = data.selected_model || Object.keys(data.pricing)[0];
+                }
+                
+                if (data.pricing && sel.value) {
+                    creditsPerTask = data.pricing[sel.value].cost_per_action;
+                }
+
+                // 4. רינדור Roadmap עם Checkboxes ותגי מחיר
+                const tList = document.getElementById('task-list');
+                const activeTasks = (data.roadmap || []).filter(t => t.status !== 'completed');
+                
+                if (activeTasks.length > 0) {
+                    tList.innerHTML = '';
+                    activeTasks.forEach(t => {
+                        const isChecked = selectedTasks.has(t.id);
+                        const div = document.createElement('div');
+                        div.className = `task-card p-4 rounded-2xl flex items-center gap-4 cursor-pointer ${isChecked ? 'bg-cyan-500/10 border-cyan-500/30' : 'bg-white/5'}`;
+                        div.onclick = (e) => { if(e.target.type !== 'checkbox') toggleTask(t.id); };
+                        
+                        div.innerHTML = `
+                            <input type="checkbox" class="checkbox-custom" onclick="event.stopPropagation(); toggleTask('${t.id}')" ${isChecked ? 'checked' : ''}>
+                            <div class="flex-1 text-right">
+                                <div class="text-[13px] font-bold text-white mb-1 leading-tight">${t.title}</div>
+                                <div class="text-[10px] text-yellow-500 font-code font-bold opacity-80">עלות: ${creditsPerTask} Cr</div>
+                            </div>
+                        `;
+                        tList.appendChild(div);
+                    });
+                } else {
+                    tList.innerHTML = '<div class="text-center py-10 text-gray-700 text-xs font-bold">אין משימות ממתינות.</div>';
+                }
+
+                // 5. ניהול כפתור ה-Bulk
+                const bulkBtn = document.getElementById('bulk-btn');
+                if (selectedTasks.size > 0) {
+                    bulkBtn.classList.remove('hidden');
+                    bulkBtn.innerHTML = `בצע ${selectedTasks.size} משימות <br> <span class="text-[9px] opacity-80">(${selectedTasks.size * creditsPerTask} קרדיטים)</span>`;
+                } else {
+                    bulkBtn.classList.add('hidden');
+                }
+
+                // 6. עדכון היסטוריה עם תיקון תאריך
+                const hLog = document.getElementById('history-log');
+                if (data.history) {
+                    hLog.innerHTML = data.history.slice().reverse().map(l => {
+                        const time = l.timestamp ? new Date(l.timestamp * 1000).toLocaleTimeString('he-IL') : '--:--';
+                        return `<div class="border-b border-white/5 pb-2"><span class="opacity-30 ml-2 font-mono">[${time}]</span> ${l.message}</div>`;
+                    }).join('');
+                }
+
+            } catch (e) { 
+                document.getElementById('status-text').innerText = "שגיאת רשת";
+                document.getElementById('status-led').className = "w-3 h-3 rounded-full bg-red-500";
+            }
+        }
+
+        function toggleTask(id) {
+            if (selectedTasks.has(id)) selectedTasks.delete(id);
+            else selectedTasks.add(id);
+            sync(); // רענון מהיר
+        }
+
+        async function updateModel() {
+            const model = document.getElementById('model-selector').value;
+            await fetch(`${API}/settings`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({model})
+            });
+            sync();
+        }
+
+        async function execSelected() {
+            const total = selectedTasks.size * creditsPerTask;
+            if (confirm(`להפעיל סוכן ביצוע על ${selectedTasks.size} משימות? \nעלות כוללת: ${total} קרדיטים.`)) {
+                const tasksArray = Array.from(selectedTasks);
+                for (const taskId of tasksArray) {
+                    await fetch(`${API}/action`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({type: 'EXECUTE_TASK', target_id: taskId, payload: {cost: creditsPerTask}})
+                    });
+                }
+                selectedTasks.clear();
+                alert("הפקודות נשלחו לביצוע!");
+                sync();
+            }
+        }
+
+        // דופק מערכת מהיר
+        setInterval(sync, 2500);
+        sync();
+    </script>
+</body>
+</html>
