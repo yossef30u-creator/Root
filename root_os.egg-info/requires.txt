@@ -1,0 +1,6 @@
+flask
+watchdog
+openai
+chromadb
+requests
+python-dotenv

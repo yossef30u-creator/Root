@@ -10,6 +10,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/atom-one-dark.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
     
+    <!-- [תוספת] ספריית ציור הגרפים למפת הארכיטקטורה -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    
     <style>
         :root {
             --bg-base: #020204;
@@ -26,13 +29,13 @@
                 radial-gradient(circle at 85% 30%, rgba(168, 85, 247, 0.03), transparent 25%);
             color: #e2e8f0; 
             font-family: 'Inter', sans-serif; 
-            height: 100dvh; /* גובה דינמי שמתחשב בדפדפן מובייל */
+            height: 100dvh; 
             width: 100vw;
             margin: 0;
             padding: 0;
             display: flex; 
             flex-direction: column; 
-            overflow: hidden; /* מונע גלילה של כל הדף */
+            overflow: hidden; 
         }
 
         .glass-panel { 
@@ -44,7 +47,7 @@
         .neon-text { text-shadow: 0 0 12px var(--cyan-glow); color: #00d2ff; }
         .font-code { font-family: 'JetBrains Mono', monospace; }
 
-        /* Scrollbar נקי וצר */
+        /* Scrollbar */
         ::-webkit-scrollbar { width: 4px; height: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #2a2a30; border-radius: 10px; }
@@ -119,11 +122,14 @@
         
         .input-wrapper { transition: all 0.2s ease; border: 1px solid var(--border-dim); }
         .input-wrapper:focus-within { border-color: rgba(0, 210, 255, 0.4); box-shadow: 0 0 15px rgba(0, 210, 255, 0.05); }
+
+        /* עיצוב המפה - תלת ממד */
+        .mermaid svg { max-width: 100%; height: auto; filter: drop-shadow(0px 0px 10px rgba(0,210,255,0.2)); }
     </style>
 </head>
 <body>
 
-    <header class="flex-none flex justify-between items-center py-3 px-4 border-b border-white/5">
+    <header class="flex-none flex justify-between items-center py-3 px-4 border-b border-white/5 relative z-40">
         <div class="flex items-center gap-3">
             <div class="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-[0_0_15px_rgba(0,210,255,0.3)]">
                 <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
@@ -135,11 +141,17 @@
         </div>
         
         <div class="flex gap-2 items-center">
+            <!-- [תוספת] כפתור המפה הארכיטקטונית -->
+            <button id="btn-arch-map" title="מפת ארכיטקטורה עמוקה" class="glass-panel px-3 py-1.5 rounded-lg flex items-center gap-2 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 transition-colors">
+                <svg class="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path></svg>
+                <span class="text-xs font-code font-bold hidden md:block">Neural Map</span>
+            </button>
+
             <div class="glass-panel px-3 py-1.5 rounded-lg flex items-center gap-2 border border-yellow-500/20">
                 <svg class="w-3.5 h-3.5 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                 <span id="credit-balance" class="text-xs font-code font-bold text-white">---</span>
             </div>
-            <select id="model-selector" onchange="updateModel()" class="glass-panel rounded-lg py-1.5 px-2 text-[10px] md:text-xs text-gray-300 font-code outline-none cursor-pointer max-w-[100px] md:max-w-none">
+            <select id="model-selector" class="glass-panel rounded-lg py-1.5 px-2 text-[10px] md:text-xs text-gray-300 font-code outline-none cursor-pointer max-w-[100px] md:max-w-none">
             </select>
             <div class="p-1.5 flex items-center justify-center">
                 <div id="status-led" class="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_#10b981]"></div>
@@ -147,9 +159,9 @@
         </div>
     </header>
 
-    <main class="flex-1 flex flex-col overflow-hidden m-2 md:m-4 mt-2 rounded-2xl border border-white/10 glass-panel shadow-2xl">
+    <main class="flex-1 flex flex-col overflow-hidden m-2 md:m-4 mt-2 rounded-2xl border border-white/10 glass-panel shadow-2xl relative">
         
-        <div id="chat-messages" class="flex-1 overflow-y-auto p-4 md:p-6 scroll-smooth relative">
+        <div id="chat-messages" class="flex-1 overflow-y-auto p-4 md:p-6 scroll-smooth relative z-10">
             <div class="msg-row bot">
                 <div class="bubble bubble-bot prose">
                     <p>מערכות הליבה הופעלו בהצלחה. <strong>Root OS באוויר.</strong></p>
@@ -158,170 +170,128 @@
             </div>
         </div>
         
-        <div id="typing-indicator" class="hidden w-full px-6 py-2 bg-gradient-to-t from-[rgba(5,5,8,0.95)] to-transparent">
+        <div id="typing-indicator" class="hidden w-full px-6 py-2 bg-gradient-to-t from-[rgba(5,5,8,0.95)] to-transparent relative z-10">
             <div class="typing-indicator">
                 <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
                 <span class="text-[10px] font-code text-cyan-400 ml-2">הסוכן מעבד...</span>
             </div>
         </div>
 
-        <div class="input-area-container p-3 md:p-4">
+        <div class="input-area-container p-3 md:p-4 relative z-10">
             <div class="input-wrapper bg-[#0a0a0f] rounded-xl px-2 py-1 flex items-end gap-2">
                 <textarea id="chat-input" 
                           placeholder="הזן פקודה או רעיון... (Shift+Enter לשורה חדשה)" 
                           class="flex-1 bg-transparent max-h-32 min-h-[40px] py-2.5 px-2 text-sm text-white outline-none resize-none overflow-y-auto" 
                           rows="1"></textarea>
 
-                <button onclick="sendMessage()" class="p-2.5 mb-1 rounded-lg bg-cyan-600/20 text-cyan-400 hover:bg-cyan-500 hover:text-black transition-all group shrink-0">
+                <button id="send-button" class="p-2.5 mb-1 rounded-lg bg-cyan-600/20 text-cyan-400 hover:bg-cyan-500 hover:text-black transition-all group shrink-0">
                     <svg class="w-5 h-5 transform rotate-90 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
                 </button>
             </div>
         </div>
+
+        <!-- [תוספת] Overlay מפת הארכיטקטורה שמסתיר את הצאט -->
+        <div id="arch-map-overlay" class="absolute inset-0 z-50 hidden bg-[#020204]/95 backdrop-blur-xl flex flex-col transition-opacity duration-300 opacity-0" dir="ltr">
+            <div class="flex justify-between items-center p-4 border-b border-cyan-500/20 bg-cyan-900/10">
+                <h2 class="text-lg font-black text-cyan-400 tracking-wider flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2-1M4 7l2 1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5"></path></svg>
+                    NEURAL ARCHITECTURE MAP
+                </h2>
+                <button id="close-map-btn" class="text-gray-400 hover:text-white bg-white/5 hover:bg-red-500/20 p-2 rounded-lg transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            
+            <div class="flex-1 overflow-auto p-4 flex items-center justify-center relative bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-cyan-900/10 via-transparent to-transparent">
+                <div id="map-loading" class="absolute text-cyan-400 flex flex-col items-center gap-3">
+                    <div class="w-8 h-8 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
+                    <span class="font-code text-xs uppercase tracking-widest">Scanning Neural Pathways...</span>
+                </div>
+                <div id="mermaid-container" class="text-center w-full max-w-5xl transition-opacity duration-500 opacity-0 overflow-visible"></div>
+            </div>
+        </div>
     </main>
 
+    <script src="/ui_script.js"></script>
+    
+    <!-- [תוספת] לוגיקת המפה המבודדת (לא פוגע ב-ui_script.js) -->
     <script>
-        const API = "http://127.0.0.1:5050/api";
-        let creditsPerTask = 0;
-        let lastHistoryTimestamp = 0;
-        let isWaitingForResponse = false;
+        document.addEventListener('DOMContentLoaded', () => {
+            // אתחול המנוע הגרפי עם עיצוב סייברפאנק אפל
+            mermaid.initialize({ 
+                startOnLoad: false, 
+                theme: 'base',
+                themeVariables: {
+                    primaryColor: '#0a0a0f',
+                    primaryTextColor: '#00d2ff',
+                    primaryBorderColor: '#00d2ff',
+                    lineColor: '#475569',
+                    secondaryColor: '#1e293b',
+                    tertiaryColor: '#0f172a',
+                    fontFamily: 'JetBrains Mono'
+                },
+                flowchart: { curve: 'basis' } // מחברים מעוקלים מודרניים
+            });
 
-        marked.setOptions({
-            highlight: function(code, lang) {
-                const language = hljs.getLanguage(lang) ? lang : 'plaintext';
-                return hljs.highlight(code, { language }).value;
-            },
-            breaks: true
-        });
+            const mapBtn = document.getElementById('btn-arch-map');
+            const closeBtn = document.getElementById('close-map-btn');
+            const overlay = document.getElementById('arch-map-overlay');
+            const container = document.getElementById('mermaid-container');
+            const loading = document.getElementById('map-loading');
 
-        async function sync() {
-            try {
-                const r = await fetch(`${API}/state`);
-                const data = await r.json();
+            // פתיחת המפה ויצירת הנתונים
+            mapBtn.addEventListener('click', async () => {
+                overlay.classList.remove('hidden');
+                requestAnimationFrame(() => overlay.classList.remove('opacity-0'));
                 
-                document.getElementById('credit-balance').innerText = (data.user_credits || 0).toLocaleString();
+                container.classList.add('opacity-0');
+                loading.classList.remove('hidden');
 
-                const sel = document.getElementById('model-selector');
-                if (sel.options.length === 0 && data.pricing) {
-                    Object.entries(data.pricing).forEach(([id, info]) => {
-                        sel.add(new Option(info.label.split('(')[0].trim(), id));
-                    });
-                    sel.value = data.selected_model || Object.keys(data.pricing)[0];
-                }
-                
-                if (data.history && data.history.length > 0) {
-                    let addedNew = false;
-                    data.history.forEach(log => {
-                        if (log.timestamp > lastHistoryTimestamp) {
-                            classifyAndRenderMessage(log);
-                            lastHistoryTimestamp = log.timestamp;
-                            addedNew = true;
-                        }
-                    });
+                try {
+                    const res = await fetch('/api/graph');
+                    const data = await res.json();
+                    
+                    if (data.nodes && data.nodes.length > 0) {
+                        let graphDef = 'graph TD\n';
+                        
+                        // יצירת מזהים ללא תווים מיוחדים כדי ש-Mermaid לא יקרוס
+                        const safeId = (str) => str.replace(/[^a-zA-Z0-9]/g, '_');
+                        
+                        // בניית נקודות העניין (Nodes)
+                        data.nodes.forEach(node => {
+                            // צביעת צומת הליבה בצבע בולט
+                            const style = node.group === 0 ? 'fill:#00d2ff,stroke:#fff,stroke-width:2px,color:#000' : '';
+                            const id = safeId(node.id);
+                            graphDef += `    ${id}["${node.id}"]\n`;
+                            if (style) graphDef += `    style ${id} ${style}\n`;
+                        });
+                        
+                        // בניית החיבורים (Links)
+                        data.links.forEach(link => {
+                            graphDef += `    ${safeId(link.source)} --> ${safeId(link.target)}\n`;
+                        });
 
-                    if (addedNew) {
-                        setTypingIndicator(false);
-                        scrollToBottom();
+                        // רינדור והכנסה למסך
+                        const { svg } = await mermaid.render('architecture-graph', graphDef);
+                        container.innerHTML = svg;
+                    } else {
+                        container.innerHTML = '<div class="text-gray-500 font-code text-sm border border-white/10 p-4 rounded bg-black/50">No architecture data found. Run Root Scan.</div>';
                     }
+                } catch (err) {
+                    console.error("Map generation failed:", err);
+                    container.innerHTML = '<div class="text-red-500 font-code border border-red-500/20 p-4 rounded bg-red-900/10">Error generating neural map. Connection to Bridge Failed.</div>';
+                } finally {
+                    loading.classList.add('hidden');
+                    container.classList.remove('opacity-0');
                 }
-            } catch (e) {
-                document.getElementById('status-led').classList.replace('bg-green-500', 'bg-red-500');
-            }
-        }
+            });
 
-        function classifyAndRenderMessage(log) {
-            const container = document.getElementById('chat-messages');
-            let text = log.message;
-            let type = 'bot'; 
-            let statusClass = '';
-
-            if (text.startsWith("המשתמש הזין רעיון:") || text.startsWith("User:")) {
-                type = 'user';
-                text = text.replace("המשתמש הזין רעיון: ", "").replace("User: ", "");
-            } 
-            else if (text.includes("שגיאה") || text.includes("נכשל") || text.includes("Error") || text.includes("❌")) {
-                type = 'system';
-                statusClass = 'error';
-            }
-            else if (text.includes("הושלם") || text.includes("נכתב בהצלחה") || text.includes("✅") || text.includes("Cr)")) {
-                type = 'system';
-                statusClass = 'success';
-            }
-            else if (text.includes("מתחיל ביצוע") || text.includes("מנתח רעיון") || text.includes("סוכן")) {
-                type = 'system';
-            }
-
-            const row = document.createElement('div');
-            row.className = `msg-row ${type}`;
-
-            if (type === 'system') {
-                row.innerHTML = `<div class="bubble-system ${statusClass}">${text}</div>`;
-            } else {
-                const parsedContent = type === 'bot' ? marked.parse(text) : escapeHtml(text);
-                row.innerHTML = `<div class="bubble bubble-${type} ${type === 'bot' ? 'prose' : ''}">${parsedContent}</div>`;
-            }
-
-            container.appendChild(row);
-        }
-
-        function escapeHtml(unsafe) {
-            return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;").replace(/\n/g, "<br>");
-        }
-
-        function scrollToBottom() {
-            const container = document.getElementById('chat-messages');
-            container.scrollTop = container.scrollHeight;
-        }
-
-        function setTypingIndicator(show) {
-            isWaitingForResponse = show;
-            document.getElementById('typing-indicator').classList.toggle('hidden', !show);
-            if (show) scrollToBottom();
-        }
-
-        async function sendMessage() {
-            const input = document.getElementById('chat-input');
-            const message = input.value.trim();
-            if (!message || isWaitingForResponse) return;
-
-            classifyAndRenderMessage({ timestamp: Date.now() / 1000, message: `User: ${message}` });
-            input.value = '';
-            input.style.height = '40px';
-            scrollToBottom();
-            setTypingIndicator(true);
-
-            try {
-                await fetch(`${API}/action`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({type: 'GENERATE_ROADMAP', payload: {idea: message}})
-                });
-            } catch (e) {
-                setTypingIndicator(false);
-                classifyAndRenderMessage({ timestamp: Date.now() / 1000, message: `❌ שגיאת תקשורת עם הליבה.` });
-            }
-        }
-
-        async function updateModel() {
-            const model = document.getElementById('model-selector').value;
-            await fetch(`${API}/settings`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({model}) });
-            sync();
-        }
-
-        const tx = document.getElementById('chat-input');
-        tx.addEventListener("input", function() {
-            this.style.height = "40px";
-            this.style.height = (this.scrollHeight) + "px";
+            // סגירת המפה
+            closeBtn.addEventListener('click', () => {
+                overlay.classList.add('opacity-0');
+                setTimeout(() => overlay.classList.add('hidden'), 300);
+            });
         });
-        
-        tx.addEventListener("keydown", (e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
-            }
-        });
-
-        sync();
-        setInterval(sync, 1500); 
     </script>
 </body>
 </html>

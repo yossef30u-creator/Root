@@ -1,9 +1,11 @@
+#!/usr/bin/env python3
 # =====
 import json
 import os
+import hashlib
 import numpy as np
 from openai import OpenAI
-from config import Config
+from config_manager import Config # הותאם למנהל ההגדרות שלנו
 
 # ניסיון ייבוא של ChromaDB. מאפשר למערכת לרוץ גם בטרמוקס (ללא כרומה) וגם בענן
 try:
@@ -20,10 +22,11 @@ class RootMemory:
         self.storage_path = storage_path
         self.chroma_path = chroma_path
         self.use_chroma = CHROMA_AVAILABLE
+        self.max_lite_records = 1500 # צופה פני עתיד: הגבלת זיכרון בטלפון למניעת קריסת RAM
         
-        # אנחנו שומרים על הלקוח המקורי והחכם שלך! קריטי לעבודה עם OpenRouter ורשתות שונות.
+        # אתחול הלקוח. משתמש ב-API_KEY מההגדרות המשותפות
         self.client = OpenAI(
-            api_key=Config.OPENAI_API_KEY, 
+            api_key=Config.API_KEY, 
             base_url=Config.BASE_URL,
             default_headers={
                 "HTTP-Referer": "https://github.com/RootProject",
@@ -41,66 +44,100 @@ class RootMemory:
     # =====
 
     # =====
+    def _generate_hash(self, text):
+        """צופה פני עתיד: ייצור טביעת אצבע לטקסט למניעת כפילויות בזיכרון"""
+        return hashlib.sha256(text.encode('utf-8')).hexdigest()
+    # =====
+
+    # =====
     def _load_memory(self):
         if os.path.exists(self.storage_path):
             try:
                 with open(self.storage_path, 'r', encoding='utf-8') as f:
                     return json.load(f)
             except json.JSONDecodeError:
+                print("⚠️ [Memory] Warning: Memory file corrupted. Starting fresh.")
                 return []
         return []
     # =====
 
     # =====
+    def _safe_json_save(self):
+        """צופה פני עתיד: כתיבה אטומית. מונע השחתת קובץ אם התוכנית קורסת באמצע השמירה"""
+        os.makedirs(os.path.dirname(self.storage_path), exist_ok=True)
+        temp_path = self.storage_path + ".tmp"
+        
+        # ניקוי ישנים אם עברנו את המקסימום המותר לטלפון
+        if len(self.memory_data) > self.max_lite_records:
+            self.memory_data = self.memory_data[-self.max_lite_records:]
+            
+        with open(temp_path, 'w', encoding='utf-8') as f:
+            json.dump(self.memory_data, f, ensure_ascii=False, indent=4)
+            
+        # החלפה אטומית - 100% בטוח
+        os.replace(temp_path, self.storage_path)
+    # =====
+
+    # =====
     def _get_embedding(self, text):
         try:
+            # הערה: אם משתמשים ב-OpenRouter, ודא שהמודל נתמך, או השתמש ב-API של OpenAI ישירות
             response = self.client.embeddings.create(
                 input=text,
                 model="text-embedding-3-small"
             )
             return response.data[0].embedding
         except Exception as e:
-            print(f"❌ [Memory Error]: {e}")
+            print(f"❌ [Memory API Error]: Failed to generate embedding. {e}")
             return None
     # =====
 
     # =====
     def add_memory(self, text, metadata=None, user_id="root_system"):
         """
-        צופה פני עתיד: הוספנו user_id למטא-דאטה. בעתיד כשיהיו כמה משתמשים/סוכנים, 
-        נוכל לסנן זכרונות לפי מי שיצר אותם.
+        שומר זכרונות עם הגנה נגד כפילויות, תמיכה במולטי-יוזר ושמירה בטוחה.
         """
-        embedding = self._get_embedding(text)
-        if not embedding:
-            return False
-
+        doc_hash = self._generate_hash(text)
         meta = metadata or {}
-        meta["user_id"] = user_id # הכנה למולטי-יוזר
+        meta["user_id"] = user_id
+        meta["hash_id"] = doc_hash
 
         if self.use_chroma:
-            import uuid
-            doc_id = str(uuid.uuid4())
+            # בדיקה מהירה אם ה-Hash כבר קיים ב-ChromaDB
+            existing = self.collection.get(ids=[doc_hash])
+            if existing and existing['ids']:
+                print(f"🔄 [Memory DB] Duplicate detected. Skipping Chroma save.")
+                return True
+
+            embedding = self._get_embedding(text)
+            if not embedding: return False
+
             self.collection.add(
                 documents=[text],
-                embeddings=[embedding], # משתמשים ב-Embedding החכם שלנו
+                embeddings=[embedding],
                 metadatas=[meta],
-                ids=[doc_id]
+                ids=[doc_hash] # מזהה ייחודי מבוסס תוכן
             )
             print(f"🧠 [Memory DB] Saved to Chroma (User: {user_id})")
+            
         else:
-            # Fallback ל-JSON
+            # בדיקת כפילויות ב-JSON Fallback
+            if any(item.get("metadata", {}).get("hash_id") == doc_hash for item in self.memory_data):
+                print(f"🔄 [Memory DB] Duplicate detected. Skipping JSON save.")
+                return True
+                
+            embedding = self._get_embedding(text)
+            if not embedding: return False
+
             new_entry = {
                 "text": text,
                 "vector": embedding,
                 "metadata": meta
             }
             self.memory_data.append(new_entry)
+            self._safe_json_save()
             
-            os.makedirs(os.path.dirname(self.storage_path), exist_ok=True)
-            with open(self.storage_path, 'w', encoding='utf-8') as f:
-                json.dump(self.memory_data, f, ensure_ascii=False, indent=4)
-            
-            print(f"🧠 [Memory DB] Saved to JSON (Total: {len(self.memory_data)})")
+            print(f"🧠 [Memory DB] Saved to JSON (Total: {len(self.memory_data)}/{self.max_lite_records})")
             
         return True
     # =====
@@ -112,7 +149,6 @@ class RootMemory:
             return []
             
         if self.use_chroma:
-            # צופה פני עתיד: חיפוש עם סינון לפי משתמש במידה וצריך
             where_clause = {"user_id": user_id} if user_id else None
             
             results = self.collection.query(
@@ -125,21 +161,20 @@ class RootMemory:
             if results['documents'] and results['documents'][0]:
                 for i in range(len(results['documents'][0])):
                     parsed_results.append((
-                        1.0 - results['distances'][0][i] if 'distances' in results else 0, # המרה ל-Similarity
+                        1.0 - results['distances'][0][i] if 'distances' in results else 0,
                         {"text": results['documents'][0][i], "metadata": results['metadatas'][0][i]}
                     ))
             return parsed_results
             
         else:
-            # Fallback לחיפוש ב-JSON עם Numpy
             if not self.memory_data: return []
             
             results = []
             for item in self.memory_data:
-                # סינון מולטי-יוזר גם ברמת ה-JSON
                 if user_id and item.get("metadata", {}).get("user_id") != user_id:
                     continue
                     
+                # חישוב מרחק קוסינוס מדויק
                 similarity = np.dot(query_vector, item["vector"]) / (
                     np.linalg.norm(query_vector) * np.linalg.norm(item["vector"])
                 )
@@ -151,7 +186,6 @@ class RootMemory:
 
     # =====
     def search_memory(self, query, top_k=3, user_id=None):
-        """ Alias to prevent backwards compatibility issues with ingestor.py """
+        """ Alias for backward compatibility """
         return self.search(query, top_k, user_id)
     # =====
-# =====

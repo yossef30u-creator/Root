@@ -1,0 +1,13 @@
+Metadata-Version: 2.4
+Name: root-os
+Version: 1.0.0
+Summary: Agentic OS for autonomous project documentation and strategy
+Author: Root OS Team
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+Requires-Dist: flask
+Requires-Dist: watchdog
+Requires-Dist: openai
+Requires-Dist: chromadb
+Requires-Dist: requests
+Requires-Dist: python-dotenv
