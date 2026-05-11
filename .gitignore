@@ -4,3 +4,5 @@ __pycache__/
 *.pyc
 .root/logs/
 .root/memory.json
+.root/
+.root/

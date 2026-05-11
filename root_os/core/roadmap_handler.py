@@ -1,16 +1,80 @@
 #!/usr/bin/env python3
-# =====
+# -*- coding: utf-8 -*-
+# ==============================================================================
+# 🗺️ Root OS: Sovereign Tactical Strategist (Master Class Edition)
+# ------------------------------------------------------------------------------
+# תפקיד: ניהול הנתיב הקריטי (Critical Path), חוב טכני (Tech Debt), ומיקרו-משימות.
+# פילוסופיה: ניהול מוצר אגרסיבי. אין משימות עמומות. כל משימה משויכת לקובץ מדויק.
+# חוקים: השמדת משימות שבוצעו, חסינות לזומבים, סנכרון GitHub, ו-Idempotency אטומי.
+# ==============================================================================
+
 import os
+import sys
 import json
-import requests
+import hashlib
+import atexit
 import subprocess
+import requests
 from datetime import datetime
 from openai import OpenAI
-from config_manager import Config
 
-# =====
+# ------------------------------------------------------------------------------
+# [1] מנגנון ייבוא מבוצר - עמידות בפני סביבה קורסת (Zero-Dependency)
+# ------------------------------------------------------------------------------
+try:
+    from root_os.core.config_manager import Config
+except ImportError:
+    try:
+        from config_manager import Config
+    except ImportError:
+        # Fallback ריבוני - המערכת ממשיכה לחיות מתוך הסביבה
+        class Config:
+            API_KEY = os.environ.get("OPENAI_API_KEY")
+            BASE_URL = os.environ.get("BASE_URL", "https://api.openai.com/v1")
+            MODEL = os.environ.get("MODEL", "gpt-4o")
+            GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
+
+# ------------------------------------------------------------------------------
+# [2] מערכת נעילה טקטית עם קוטל זומבים (Zombie-Proof Lock)
+# ------------------------------------------------------------------------------
+LOCK_FILE = ".root_roadmap.lock"
+
+def acquire_roadmap_lock():
+    """מנגנון Concurrency קשיח. משמיד מנעולים שנשארו מתהליכים שקרסו."""
+    if os.path.exists(LOCK_FILE):
+        try:
+            with open(LOCK_FILE, "r") as f:
+                old_pid = int(f.read().strip())
+            os.kill(old_pid, 0) # וידוא חיות מול ה-OS
+            print(f"⏳ [Strategist] Roadmap locked by live process (PID: {old_pid}). Postponing.")
+            return False
+        except (OSError, ValueError):
+            print(f"🔨 [Strategist] Crushing zombie lock (PID: {old_pid}). Proceeding...")
+            try: os.remove(LOCK_FILE)
+            except: pass
+
+    try:
+        with open(LOCK_FILE, "w") as f:
+            f.write(str(os.getpid()))
+        return True
+    except Exception as e:
+        print(f"❌ [Strategist] Lock failure: {e}")
+        return False
+
+def release_roadmap_lock():
+    """שחרור אלגנטי המובטח תמיד להתרחש."""
+    if os.path.exists(LOCK_FILE):
+        try: os.remove(LOCK_FILE)
+        except: pass
+
+# הטאקסיט (atexit): שומר הראש של הזיכרון - משחרר את המנעול בכל מחיר
+atexit.register(release_roadmap_lock)
+
+# ------------------------------------------------------------------------------
+# [3] אינטגרציה חיצונית (GitHub Tactical Ops)
+# ------------------------------------------------------------------------------
 def get_current_repo():
-    """שולף את שם המאגר מהתיקייה הנוכחית"""
+    """זיהוי דינאמי של סביבת הגיטהאב לצורך סנכרון"""
     try:
         url = subprocess.check_output(
             ['git', 'remote', 'get-url', 'origin'], 
@@ -18,96 +82,130 @@ def get_current_repo():
         ).decode().strip()
         if "github.com/" in url:
             return url.split("github.com/")[-1].replace(".git", "")
-    except:
-        return None
+    except: return None
     return None
 
-# =====
 def create_github_issue(title, body, labels=None):
-    """יוצר Issue בגיטהאב למשימות דחופות"""
+    """נשק יום הדין: האסטרטג פותח תקלות לעצמו אם המצב קריטי"""
     repo = get_current_repo()
-    if not Config.GITHUB_TOKEN or not repo:
-        return
+    if not Config.GITHUB_TOKEN or not repo: return
 
-    if labels is None:
-        labels = ["root-task", "automated"]
-
+    labels = labels or ["root-task", "P1-Urgent"]
     url = f"https://api.github.com/repos/{repo}/issues"
     headers = {
         "Authorization": f"token {Config.GITHUB_TOKEN}",
         "Accept": "application/vnd.github.v3+json"
     }
-    data = {"title": title, "body": body, "labels": labels}
-    
     try:
-        requests.post(url, json=data, headers=headers)
-    except:
-        pass
+        requests.post(url, json={"title": title, "body": body, "labels": labels}, headers=headers, timeout=5)
+    except: pass
 
-# =====
+# ------------------------------------------------------------------------------
+# [4] מנוע האסטרטגיה הריבוני (The Tactical Engine)
+# ------------------------------------------------------------------------------
+def generate_strategy_hash(payload, critic):
+    """חתימה מתמטית של מצב הקוד למניעת ניתוח סרק."""
+    raw_data = f"{payload}::_{critic}_::TACTICAL"
+    return hashlib.md5(raw_data.encode('utf-8')).hexdigest()[:10]
+
 def agentic_roadmap_sync(analysis, critic_feedback):
     """
-    (מנהל המוצר - The Strategist)
-    קורא את ה-Roadmap הקיים, מסנן החוצה משימות שבוצעו בקוד החדש,
-    ומעדכן סדרי עדיפויות וחוב טכני. 
+    מנתח את המצב, משמיד משימות שבוצעו, וגוזר מיקרו-משימות לביצוע מיידי.
     """
-    roadmap_file = getattr(Config, 'ROADMAP_PATH', 'ROADMAP.md')
+    if not acquire_roadmap_lock(): return
+
+    roadmap_file = "ROADMAP.md"
+    strategy_hash = generate_strategy_hash(analysis, critic_feedback)
     
-    # 1. קריאת ה-Roadmap הקיים
+    # 1. קריאת האסטרטגיה הקיימת והגנה מפני כפילויות (Idempotency)
     current_roadmap = ""
     if os.path.exists(roadmap_file):
         with open(roadmap_file, "r", encoding="utf-8") as f:
             current_roadmap = f.read()
+            if f"StrategyID: {strategy_hash}" in current_roadmap:
+                print(f"🔄 [Strategist] Path is already optimized for current state (Hash: {strategy_hash}).")
+                return
 
-    # אתחול מול ה-AI
-    api_key = os.environ.get("OPENAI_API_KEY")
-    if not api_key: return []
-    client = OpenAI(base_url=os.environ.get("BASE_URL"), api_key=api_key)
+    if not Config.API_KEY:
+        print("⚠️ [Strategist] API Key missing. Execution plan stalled.")
+        return
 
-    # 2. חוקי הברזל למנהל המוצר
-    system_prompt = """
-    You are the 'Strategic Product Manager Agent' for Root OS.
-    Your job is to rewrite the ROADMAP.md file based on the latest code changes.
+    client = OpenAI(
+        base_url=Config.BASE_URL, 
+        api_key=Config.API_KEY,
+        default_headers={"X-Title": "Root Tactical Engine"}
+    )
+
+    # --------------------------------------------------------------------------
+    # הפרומפט המיקרו-טקטי (Micro-Management Prompt)
+    # --------------------------------------------------------------------------
+    system_prompt = f"""
+    You are the 'Sovereign Tactical Engine' for Root OS.
+    Your mandate is to maintain the ROADMAP.md with ruthless precision.
     
-    CRITICAL RULES:
-    1. META-INSTRUCTION: Start the document with:
-       "> **הוראת מערכת:** אלו הפעולות העתידיות. משימות שבוצעו נמחקו מכאן ועברו ל-HISTORY."
-    2. REMOVE DONE TASKS: If the 'Latest Changes' show that a task from the 'Current Roadmap' is completed, DELETE IT from the new roadmap. Do not strike it out. Remove it.
-    3. ADD TECH DEBT: If the 'Critic Feedback' mentions bugs, messy code, or vulnerabilities, ADD them as high-priority tasks in a "Technical Debt" section.
-    4. REQUIRED STRUCTURE:
-       - 🚨 צווארי בקבוק וחוב טכני (Urgent Fixes)
-       - 🚧 הנתיב הקריטי (Critical Path - Next immediate steps)
-       - 💡 בקלוג רעיונות (Future Backlog)
-       
-    Output ONLY valid Markdown.
+    CRITICAL TACTICAL RULES:
+    1. MICRO-TASKING: No vague tasks like "Improve UI". You must write "Update ui_script.js function X to handle Y".
+    2. RUTHLESS PRUNING: If 'Latest Analysis' shows a previously planned task is complete, ERASE IT from the new document.
+    3. THE CRITIC IS LAW: Convert EVERY issue found in 'Critic Feedback' into a P1 Urgent Fix.
+    4. ATOMIC ACCOUNTABILITY: Every task must specify the target FILE and the exact DEFINITION OF DONE.
+    5. HEBREW UI: Content must be in professional, technical Hebrew (Markdown format).
+    
+    MANDATORY STRUCTURE:
+    > **הוראת מערכת:** אלו הפעולות העתידיות לנתיב הקריטי במיקרו-רזולוציה. משימות שבוצעו הושמדו.
+    
+    ## 🚨 חוב טכני וצווארי בקבוק (P1 - Urgent Fixes)
+    (Table: Task | Target File | Definition of Done)
+    
+    ## 🚧 הנתיב הקריטי לביצוע (Micro-Task Execution Plan)
+    (Table: Task | Target File | Priority)
+    
+    ## 💡 בקלוג אסטרטגי ומחקר (Future Ops)
     """
 
-    user_prompt = f"""
-    --- Current ROADMAP.md ---
-    {current_roadmap if current_roadmap else "Empty (New Project)."}
-    
-    --- Latest Changes (Tasks that might be completed now) ---
-    {analysis}
-    
-    --- Critic Feedback (New technical debt to add) ---
-    {critic_feedback if critic_feedback else "No new technical debt."}
-    """
-
-    print(f"🗺️ [Root PM] Syncing roadmap: removing done tasks, prioritizing debt...")
+    print(f"🗺️  [Root Strategist] Calculating tactical vectors (Hash: {strategy_hash})...")
 
     try:
         response = client.chat.completions.create(
-            model=os.environ.get("MODEL", "google/gemini-pro-1.5"),
+            model=Config.MODEL,
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ]
+                {"role": "user", "content": f"Current Plan:\n{current_roadmap}\n\nLive State:\n{analysis}\n\nCritic (TestSentry):\n{critic_feedback}"}
+            ],
+            temperature=0.1 # דיוק קטלני
         )
-        new_roadmap = response.choices[0].message.content.strip()
+        
+        new_content = response.choices[0].message.content.strip()
 
-        # ניקוי פורמט
-        if new_roadmap.startswith("
-http://googleusercontent.com/immersive_entry_chip/0
-http://googleusercontent.com/immersive_entry_chip/1
+        # ניקוי פורמט בטוח        # ניקוי פורמט בטוח
+        if new_content.startswith("```"):
+            lines = new_content.split("\n")
+            if lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines and lines[-1].startswith("```"):
+                lines = lines[:-1]
+            new_content = "\n".join(lines).strip()
 
-**נראה לך נכון? זה משאיר לנו רק את ה-`history_handler.py` (המוח הזוכר, הארכיון), שם נגדיר שהוא פשוט בולע הכל כרונולוגית ולא מוחק כלום.**
+
+        # כפיית חותמת ה-Hash אטומית
+        if f"StrategyID: {strategy_hash}" not in new_content:
+            new_content += f"\n\n---\n*StrategyID: {strategy_hash}*"
+
+        with open(roadmap_file, "w", encoding="utf-8") as f:
+            f.write(new_content)
+            
+        print("✅ [Strategist] Tactical Micro-Roadmap deployed. Execution clear.")
+
+    except Exception as e:
+        print(f"❌ [Strategist Error] Tactical mapping failed: {e}")
+    finally:
+        release_roadmap_lock()
+
+# ------------------------------------------------------------------------------
+# [5] ממשק ה-Handler לסורק הגלובלי
+# ------------------------------------------------------------------------------
+class RoadmapHandler:
+    def update(self, analysis="Update", critic="None"):
+        agentic_roadmap_sync(analysis, critic)
+
+if __name__ == "__main__":
+    agentic_roadmap_sync("System modules verified", "Memory leak risk in ingestor.py")

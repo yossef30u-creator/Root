@@ -53,7 +53,7 @@ MODEL_PRICING = {
     "anthropic/claude-3.5-sonnet": {"cost_per_action": 15, "label": "Claude 3.5 Sonnet (Pro)"},
     "openai/gpt-4o": {"cost_per_action": 12, "label": "GPT-4o (Analyst)"},
     "meta-llama/llama-3-70b-instruct": {"cost_per_action": 5, "label": "Llama 3 70B (Fast)"},
-    "google/gemini-pro-1.5": {"cost_per_action": 8, "label": "Gemini 1.5 Pro"}
+    "openai/gpt-4o": {"cost_per_action": 8, "label": "Gemini 1.5 Pro"}
 }
 
 START_TIME = time.time()

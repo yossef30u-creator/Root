@@ -118,7 +118,7 @@ def setup_wizard():
     except:
         config_data = {
             'BASE_URL': 'https://openrouter.ai/api/v1',
-            'MODEL': 'google/gemini-pro-1.5'
+            'MODEL': 'openai/gpt-4o'
         }
         
     config_data['API_KEY'] = api_key

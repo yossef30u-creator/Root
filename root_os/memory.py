@@ -1,9 +1,11 @@
+#####
 #!/usr/bin/env python3
 # =====
 import json
 import os
 import hashlib
 import numpy as np
+import atexit # הוסף לתמיכה בנעילה וסגירה אלגנטית (הטאקסיט)
 from openai import OpenAI
 from config_manager import Config # הותאם למנהל ההגדרות שלנו
 
@@ -23,6 +25,7 @@ class RootMemory:
         self.chroma_path = chroma_path
         self.use_chroma = CHROMA_AVAILABLE
         self.max_lite_records = 1500 # צופה פני עתיד: הגבלת זיכרון בטלפון למניעת קריסת RAM
+        self.max_file_size_mb = 50 # תוספת חדשה: הגבלת משקל קובץ ב-MB למניעת עומס קריאה
         
         # אתחול הלקוח. משתמש ב-API_KEY מההגדרות המשותפות
         self.client = OpenAI(
@@ -41,6 +44,19 @@ class RootMemory:
         else:
             print("⚠️ [Memory] ChromaDB not found. Falling back to lightweight JSON/Numpy DB.")
             self.memory_data = self._load_memory()
+            self._enforce_size_limits() # בדיקת גודל אקטיבית כבר בהפעלה
+            
+        # רישום atexit לסגירה אלגנטית ושמירה בטוחה של זכרונות אם התהליך נקטע
+        atexit.register(self.graceful_shutdown)
+    # =====
+
+    # =====
+    def graceful_shutdown(self):
+        """הטאקסיט: פונקציה שתרוץ תמיד בסגירת התוכנית כדי להבטיח שלא נאבד מידע ואין השחתה"""
+        print("🛡️ [Memory] Graceful shutdown initiated. Securing memory states...")
+        if not self.use_chroma:
+            self._safe_json_save()
+        print("🔒 [Memory] Memory secured safely.")
     # =====
 
     # =====
@@ -62,12 +78,30 @@ class RootMemory:
     # =====
 
     # =====
+    def _enforce_size_limits(self):
+        """
+        ניהול זיכרון אוטומטי (מחיקה לפי גודל):
+        בודק אם קובץ ה-JSON חורג מהמשקל המותר ב-MB.
+        אם כן, מקצץ את 20% מהרשומות הישנות ביותר כדי לפנות אוויר למערכת.
+        """
+        if not os.path.exists(self.storage_path) or not hasattr(self, 'memory_data'):
+            return
+            
+        file_size_mb = os.path.getsize(self.storage_path) / (1024 * 1024)
+        if file_size_mb > self.max_file_size_mb:
+            print(f"🧹 [Memory] File size ({file_size_mb:.2f}MB) exceeds limit ({self.max_file_size_mb}MB). Pruning old memory...")
+            trim_count = int(self.max_lite_records * 0.2) # מחיקת 20% מהזכרונות העתיקים ביותר
+            self.memory_data = self.memory_data[trim_count:]
+            # הכתיבה מבוצעת על ידי הקריאות הקיימות ממילא או בסגירה
+    # =====
+
+    # =====
     def _safe_json_save(self):
         """צופה פני עתיד: כתיבה אטומית. מונע השחתת קובץ אם התוכנית קורסת באמצע השמירה"""
         os.makedirs(os.path.dirname(self.storage_path), exist_ok=True)
         temp_path = self.storage_path + ".tmp"
         
-        # ניקוי ישנים אם עברנו את המקסימום המותר לטלפון
+        # ניקוי ישנים אם עברנו את המקסימום המותר לטלפון בכמות הרשומות
         if len(self.memory_data) > self.max_lite_records:
             self.memory_data = self.memory_data[-self.max_lite_records:]
             
@@ -76,6 +110,9 @@ class RootMemory:
             
         # החלפה אטומית - 100% בטוח
         os.replace(temp_path, self.storage_path)
+        
+        # אכיפת משקל פיזי מיד אחרי השמירה
+        self._enforce_size_limits()
     # =====
 
     # =====
@@ -188,4 +225,4 @@ class RootMemory:
     def search_memory(self, query, top_k=3, user_id=None):
         """ Alias for backward compatibility """
         return self.search(query, top_k, user_id)
-    # =====
+#####

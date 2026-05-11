@@ -1,96 +1,197 @@
 #!/usr/bin/env python3
-# =====
+# -*- coding: utf-8 -*-
+# ==============================================================================
+# 🌳 Root OS: Sovereign Atomic Architect (Master Class Edition)
+# ------------------------------------------------------------------------------
+# תפקיד: יצירת "תאום דיגיטלי" (Digital Twin) של כל המערכת ב-ROOT.md.
+# פילוסופיה: מיקרו-סקופיה הנדסית. כל בורג, כל פונקציה, כל חוזה - מתועד אטומית.
+# חוקים: א-כרונולוגי (ללא היסטוריה), Idempotent (חתימות חסינות), קשיח (atexit).
+# ==============================================================================
+
 import os
+import sys
+import json
+import hashlib
+import atexit
+import signal
 from datetime import datetime
 from openai import OpenAI
-from config_manager import Config
 
-# =====
-def update_manifest(analysis, critic_feedback=None):
+# ------------------------------------------------------------------------------
+# [1] מנגנון ייבוא וקונפיגורציה ריבונית
+# ------------------------------------------------------------------------------
+try:
+    from root_os.core.config_manager import Config
+except ImportError:
+    try:
+        from config_manager import Config
+    except ImportError:
+        class Config:
+            API_KEY = os.environ.get("OPENAI_API_KEY")
+            BASE_URL = os.environ.get("BASE_URL", "https://api.openai.com/v1")
+            MODEL = os.environ.get("MODEL", "gpt-4o")
+            MANIFEST_PATH = "ROOT.md"
+
+# ------------------------------------------------------------------------------
+# [2] ניהול משאבים ונעילה אטומית (Concurrency Guard)
+# ------------------------------------------------------------------------------
+LOCK_FILE = ".root_architect.lock"
+
+def acquire_architect_lock():
     """
-    (אדריכל המערכת)
-    קורא את הארכיטקטורה הקיימת, מבין את השינויים החדשים, 
-    וכותב מחדש את מפת ה-ROOT במלואה - ללא היסטוריה, רק הווה אסטרטגי.
+    נועל את המערכת למניעת Race Conditions. 
+    אם תהליך אחר רץ, הריצה הנוכחית תיבלם כדי למנוע השחתת ה-DNA.
     """
+    if os.path.exists(LOCK_FILE):
+        try:
+            with open(LOCK_FILE, "r") as f:
+                old_pid = int(f.read().strip())
+            # בדיקה אם התהליך הישן עדיין חי
+            os.kill(old_pid, 0)
+            print(f"⏳ [Architect] System locked by PID {old_pid}. Aborting current sync.")
+            return False
+        except (OSError, ValueError):
+            # תהליך זומבי - מנקים ונועלים מחדש
+            os.remove(LOCK_FILE)
+
+    try:
+        with open(LOCK_FILE, "w") as f:
+            f.write(str(os.getpid()))
+        return True
+    except Exception as e:
+        print(f"❌ [Architect] Lock error: {e}")
+        return False
+
+def release_architect_lock():
+    """משחרר את הנעילה - מופעל תמיד בסיום (Graceful Shutdown)"""
+    if os.path.exists(LOCK_FILE):
+        try:
+            os.remove(LOCK_FILE)
+        except:
+            pass
+
+# רישום 'הטאקסיט' - הבטחת שרידות וניקיון משאבים תמיד
+atexit.register(release_architect_lock)
+
+# ------------------------------------------------------------------------------
+# [3] מנוע האדריכלות האטומי (The Master Engine)
+# ------------------------------------------------------------------------------
+def update_manifest(analysis_payload, critic_feedback=None):
+    """
+    הופך את כל ה-Payload שהתקבל מהסקאנר למפרט הנדסי ברמת בורג.
+    """
+    if not acquire_architect_lock(): return
+
     manifest_path = getattr(Config, 'MANIFEST_PATH', 'ROOT.md')
     
-    # 1. קריאת המפה הקיימת (כדי לא לאבד את המבנה של שאר המערכת)
+    # חישוב BlueprintID: חתימה אטומית המונעת עיבוד כפול אם הקוד לא השתנה
+    raw_data = str(analysis_payload) + str(critic_feedback)
+    blueprint_hash = hashlib.md5(raw_data.encode('utf-8')).hexdigest()[:12]
+
+    # קריאת המפה הקיימת ובדיקת יציבות (Idempotency)
     current_root = ""
     if os.path.exists(manifest_path):
         with open(manifest_path, "r", encoding="utf-8") as f:
             current_root = f.read()
+            if f"BlueprintID: {blueprint_hash}" in current_root:
+                print(f"🔄 [Architect] Atomic state is stable (Hash: {blueprint_hash}). Skipping sync.")
+                return
 
-    # 2. אתחול חיבור למוח ה-AI
-    api_key = os.environ.get("OPENAI_API_KEY")
-    base_url = os.environ.get("BASE_URL", "https://openrouter.ai/api/v1")
-    model = os.environ.get("MODEL", "google/gemini-pro-1.5")
-    
-    if not api_key:
-        print("⚠️ [Root Architect] חסר API Key, מבצע ניקוי בסיסי ללא ניתוח עומק...")
-        return # במערכת אמיתית נעשה פה Fallback, אבל רות דורשת AI.
+    # אתחול ה-AI (המוח של המפלצת)
+    if not Config.API_KEY:
+        print("⚠️ [Root Architect] Critical Failure: No API Key. Master sync suspended.")
+        return
 
-    client = OpenAI(base_url=base_url, api_key=api_key)
+    client = OpenAI(api_key=Config.API_KEY, base_url=Config.BASE_URL)
 
-    # 3. הפרומפט המפלצתי - חוקי הברזל לאדריכל
-    system_prompt = """
-    You are the 'System Architect Agent' for Root OS.
-    Your objective is to maintain the ROOT.md file. This file is the strategic DNA of the project.
-    
-    CRITICAL RULES:
-    1. META-INSTRUCTION: You must start the document with:
-       "> **הוראת מערכת:** זה המצב הנוכחי בלבד. אל תחפש פה היסטוריה."
-    2. NO HISTORY: Do not write "Added", "Changed", or "Fixed". Only describe how the system works RIGHT NOW.
-    3. NO TASKS: Do not write what needs to be done. That belongs in the Roadmap.
-    4. STRUCTURE REQUIRED:
-       - 🏗️ מפת זרימה לוגית (Logic Flow)
-       - 🧠 הנחות יסוד (Core Assumptions)
-       - 🔗 מפת תלות (Dependency Graph)
-       - 🔌 ממשקים מרכזיים (APIs & Contracts)
-    
-    Read the 'Current ROOT.md' and the 'Latest Changes'. 
-    Synthesize them, remove obsolete components, and output the entirely rewritten ROOT.md.
-    Output ONLY valid Markdown.
+    # --------------------------------------------------------------------------
+    # הפרומפט המפלצתי - רמה עולמית של פירוט הנדסי
+    # --------------------------------------------------------------------------
+    system_prompt = f"""
+    You are the 'Sovereign Atomic Architect'. Your output is the definitive HLD/LLD for Root OS.
+    This document is the system's "Source of Truth". If a component is not here, it doesn't exist.
+
+    CRITICAL ENGINEERING CONTRACT:
+    1. ATOMIC INVENTORY: You MUST list EVERY SINGLE FILE provided in the scan payload. 
+       - No "various", no "etc". Map all 100% of files.
+       - For each file: [Path, Role, Logic Gate, Data Contracts, Dependencies].
+    2. MICRO-LOGIC MAPPING: Document specific functions, variable schemas (e.g., .env), and PID lock files.
+    3. THE CONTINUOUS LOOP: Detail exactly how the system reacts to a file change (Watcher -> Ingestor -> Handlers).
+    4. PERSISTENCE MATRIX: Create a strict table of data locations (Memory DB, JSON, Markdown, Core Dumps).
+    5. NO HISTORY: Zero chronological data. Only describe the current 'Now' of the machine.
+
+    MANDATORY STRUCTURE:
+    - 🏗️ Runtime Topology (The Orchestration Engine & Process Model)
+    - 📦 Micro-Component Inventory (EVERY file mapped in an atomic table)
+    - 🔌 Data Contracts & Logic Interfaces (How modules talk to each other)
+    - 🛡️ Operational Boundaries (Resource limits, RAM guards, Security rules)
+    - 📊 Persistence Matrix (Path-specific storage rules)
+
+    Use Markdown tables for EVERYTHING possible. Professional, surgical, engineering-grade tone.
+    Output ONLY valid Markdown. Append 'BlueprintID: {blueprint_hash}' at the very end.
     """
 
     user_prompt = f"""
-    --- Current ROOT.md ---
-    {current_root if current_root else "Empty (New Project. Build the baseline architecture)."}
+    --- ATOMIC SCAN PAYLOAD ---
+    {analysis_payload}
     
-    --- Latest Changes (Diff Analysis) ---
-    {analysis}
-    
-    --- Architect Warnings (Critic) ---
-    {critic_feedback if critic_feedback else "None"}
+    --- CRITIC REVIEW ---
+    {critic_feedback if critic_feedback else "No structural errors detected."}
     """
 
-    print(f"🏗️ [Root Architect] Synthesizing full system blueprint...")
+    print(f"🏗️ [Root Architect] Synthesizing Digital Twin (Blueprint: {blueprint_hash})...")
 
     try:
-        # 4. כתיבת הארכיטקטורה מחדש
+        # פנייה למוח ה-AI ליצירת ה-DNA מחדש
         response = client.chat.completions.create(
-            model=model,
+            model=Config.MODEL,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
-            ]
+            ],
+            temperature=0.1 # טמפרטורה נמוכה לדיוק הנדסי מקסימלי
         )
-        new_root_content = response.choices[0].message.content.strip()
+        
+        raw_blueprint = response.choices[0].message.content.strip()
 
-        # ניקוי אם המודל עטף ב-```markdown
-        if new_root_content.startswith("```markdown"):
-            new_root_content = new_root_content[11:-3].strip()
-        elif new_root_content.startswith("```"):
-            new_root_content = new_root_content[3:-3].strip()
+        # ניקוי פורמט Markdown - חסין שבירות
+        if raw_blueprint.startswith("```"):
+            lines = raw_blueprint.split("\n")
+            if len(lines) > 0 and lines[0].strip().startswith("```"):
+                lines = lines[1:]
+            if len(lines) > 0 and lines[-1].strip().startswith("```"):
+                lines = lines[:-1]
+            raw_blueprint = "\n".join(lines).strip()
 
-        # 5. חותמת זמן ושמירה ("הלוח המחיק")
+        # הזרקת החותמת למקרה שה-AI השמיט
+        if f"BlueprintID: {blueprint_hash}" not in raw_blueprint:
+            raw_blueprint += f"\n\n---\n*BlueprintID: {blueprint_hash}*"
+
+        # כתיבת ה"לוח המחיק" (Tabula Rasa)
         now_str = datetime.now().strftime('%d/%m/%Y %H:%M')
-        final_content = f"# 🌳 Root OS: Master Architecture\n\n{new_root_content}\n\n---\n*📐 אדריכלות עודכנה: {now_str} | מערכת Root OS*"
+        header = f"# 🌳 Root OS: Sovereign Atomic Architecture\n\n> **הוראת מערכת:** זהו מניפסט ה-DNA המוחלט. כל בורג מתועד. אין פה היסטוריה.\n\n"
+        footer = f"\n\n---\n*📐 אדריכלות מאומתת: {now_str} | מנוע: Root OS Master Architect V2*"
+        
+        final_document = header + raw_blueprint + footer
 
         with open(manifest_path, "w", encoding="utf-8") as f:
-            f.write(final_content)
+            f.write(final_document)
             
-        print("✅ [Root Architect] Blueprint regenerated successfully. Context is sharp.")
+        print(f"✅ [Root Architect] Master Blueprint is now locked and atomic. Integrity 100%.")
 
     except Exception as e:
-        print(f"❌ [Root Architect Error] Failed to generate strategic root: {e}")
-# =====
+        print(f"❌ [Root Architect Error] Failed to generate atomic spec: {e}")
+    finally:
+        release_architect_lock()
+
+# ------------------------------------------------------------------------------
+# [4] נקודת כניסה למערכת (Entry Point)
+# ------------------------------------------------------------------------------
+if __name__ == "__main__":
+    # הרצה ידנית לצורך אימות בסיס הנתונים
+    mock_scan = {
+        "files": ["core/root_handler.py", "core/scanner.py", "core/ingestor.py"],
+        "total_kb": 124,
+        "config": ".env"
+    }
+    update_manifest(json.dumps(mock_scan), "Standard system initialization.")

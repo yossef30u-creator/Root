@@ -1,4 +1,6 @@
+#####
 #!/usr/bin/env python3
+# =====
 import os
 import sys
 import subprocess
@@ -6,15 +8,19 @@ import venv
 
 # --- הגדרות התקנה ---
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
-REQUIRED_DIRS = ["core", "dashboard"]
+# תוספת: תיקיית הזיכרון הנסתרת (.root) מתווספת לרשימה
+REQUIRED_DIRS = ["core", "dashboard", ".root"] 
 REQUIRED_PACKAGES = [
     "watchdog",      # חיישן הקבצים
     "openai",        # מוח ה-AI
     "flask",         # שרת הדשבורד
     "flask-cors",    # חיבור לדשבורד מכל מקום
-    "python-dotenv"  # ניהול משתני סביבה
+    "python-dotenv", # ניהול משתני סביבה (מורשת)
+    "numpy"          # תוספת: חובה עבור מערכת הזיכרון האדפטיבית החדשה
 ]
+# =====
 
+# =====
 def print_step(msg):
     print(f"\n⚙️  [Setup] {msg}")
 
@@ -25,7 +31,9 @@ def check_python_version():
         print("❌ שגיאה: Root OS דורש Python 3.8 ומעלה.")
         sys.exit(1)
     print("✅ גרסת Python תקינה.")
+# =====
 
+# =====
 def create_directories():
     """מקים את מבנה התיקיות הנדרש"""
     print_step("מוודא שמבנה התיקיות קיים...")
@@ -36,7 +44,9 @@ def create_directories():
             print(f"📁 נוצרה תיקייה: {d}/")
         else:
             print(f"✔️ תיקיית {d}/ כבר קיימת.")
+# =====
 
+# =====
 def install_dependencies():
     """מתקין את כל הספריות הנדרשות ישירות לסביבה"""
     print_step("מתקין חבילות ותלויות (זה עשוי לקחת דקה)...")
@@ -47,7 +57,9 @@ def install_dependencies():
     except Exception as e:
         print(f"❌ שגיאה בהתקנת חבילות: {e}")
         print("💡 נסה להריץ: pip install " + " ".join(REQUIRED_PACKAGES))
+# =====
 
+# =====
 def setup_env_file():
     """מייצר תבנית לקובץ משתני הסביבה אם הוא לא קיים"""
     print_step("מגדיר משתני סביבה (.env)...")
@@ -63,6 +75,18 @@ def setup_env_file():
     else:
         print("✔️ קובץ .env כבר קיים.")
 
+def init_global_config():
+    """תוספת: מריץ את ה-Bootloader כדי להבטיח מעבר ל-Global Config החדש"""
+    print_step("מאתחל הגדרות גלובליות (~/.root_config)...")
+    boot_path = os.path.join(PROJECT_ROOT, "root_os", "boot.py")
+    if os.path.exists(boot_path):
+        print("🚀 מריץ Bootloader ליצירת תצורה מודרנית...")
+        subprocess.call([sys.executable, boot_path])
+    else:
+        print("⚠️ קובץ boot.py לא נמצא, מדלג על אתחול גלובלי.")
+# =====
+
+# =====
 def create_startup_script():
     """מייצר סקריפט הפעלה קצר למשתמש"""
     print_step("מייצר קובץ הפעלה מהיר...")
@@ -70,7 +94,9 @@ def create_startup_script():
     with open(script_path, "w", encoding="utf-8") as f:
         f.write("#!/bin/bash\n")
         f.write("echo '🚀 מתניע את Root OS...'\n")
-        f.write(f"python3 {os.path.join(PROJECT_ROOT, 'root_service.py')}\n")
+        # תוספת: עדכון נתיב ההפעלה לארכיטקטורה החדשה והוספת משתנה ה-PYTHONPATH הנדרש
+        f.write("export PYTHONPATH=.\n")
+        f.write(f"python3 {os.path.join(PROJECT_ROOT, 'root_os/core/root_service.py')} || python3 {os.path.join(PROJECT_ROOT, 'root_service.py')}\n")
     
     # מתן הרשאות הרצה בלינוקס/טרמוקס
     try:
@@ -78,7 +104,9 @@ def create_startup_script():
         print("⚡ נוצר קובץ הפעלה (start.sh).")
     except:
         pass
+# =====
 
+# =====
 if __name__ == "__main__":
     print("========================================")
     print("🌳 ברוכים הבאים להתקנת Root Agentic OS")
@@ -88,14 +116,15 @@ if __name__ == "__main__":
     create_directories()
     install_dependencies()
     setup_env_file()
+    init_global_config() # תוספת הפעלת הבוטלואדר של הארכיטקטורה החדשה
     create_startup_script()
     
     print("\n========================================")
     print("🎉 ההתקנה הושלמה בהצלחה!")
     print("========================================")
     print("👉 מה עכשיו?")
-    print("1. פתח את הקובץ .env ועדכן את המפתחות שלך (API Key).")
+    print("1. ודא שהמפתחות הוגדרו נכון (דרך boot.py או .env).")
     print("2. הפעל את המערכת על ידי הפקודה:")
     print("   ./start.sh")
-    print("   (או: python3 root_service.py)")
     print("========================================")
+#####
