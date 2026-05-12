@@ -85,6 +85,8 @@ def generate_roadmap_strategy(idea, model):
         "You are the 'Root Architect'. Break ideas into a JSON list of atomic tasks."
     )
 
+    start_time = time.time()
+    success = False
     try:
         response = client.chat.completions.create(
             model=model,
@@ -95,9 +97,10 @@ def generate_roadmap_strategy(idea, model):
             response_format={"type": "json_object"},
         )
         data = json.loads(clean_json_response(response.choices[0].message.content))
-        return True, data.get("tasks", [])
+        success = True
+        return True, data.get("tasks", []), model, time.time() - start_time, success, 0 # Placeholder for cost
     except Exception as e:
-        return False, str(e)
+        return False, str(e), model, time.time() - start_time, success, 0 # Placeholder for cost
 
 
 def execute_task_logic(task_title, model):
@@ -130,6 +133,8 @@ def apply_code_change(file_path, instruction):
     4. Return PURE code only.
     """
 
+    start_time = time.time()
+    success = False
     try:
         response = client.chat.completions.create(
             model=os.getenv("MODEL", "gpt-4o"),
@@ -146,9 +151,11 @@ def apply_code_change(file_path, instruction):
 
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(new_code)
-        return True, "File updated"
+        success = True
+        # Returning additional metrics for LLM usage
+        return True, "File updated", os.getenv("MODEL", "gpt-4o"), time.time() - start_time, success, 0 # Placeholder for cost
     except Exception as e:
-        return False, str(e)
+        return False, str(e), os.getenv("MODEL", "gpt-4o"), time.time() - start_time, success, 0 # Placeholder for cost
     finally:
         release_coder_lock()
 

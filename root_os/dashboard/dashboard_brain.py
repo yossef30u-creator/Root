@@ -82,6 +82,19 @@ def sync_state():
             "roadmap": [],
             "history": [],
             "user_credits": 1000,
+            "statistics": { # Initializing statistics for the dashboard
+                "credit_balance_history": [
+                    {"timestamp": datetime.now().isoformat(), "balance": 1000}
+                ],
+                "task_summary": {
+                    "total_tasks": 0,
+                    "completed_tasks": 0,
+                    "failed_tasks": 0,
+                    "pending_tasks": 0,
+                    "avg_completion_time_seconds": 0.0,
+                },
+                "llm_usage": [], # To be populated by agent_coder updates
+            },
         },
     )
 
@@ -109,6 +122,9 @@ def sync_state():
                         "title": task_title,
                         "status": "pending",
                         "created_at": datetime.now().isoformat(),
+                        "start_time": None, # Add new fields for task tracking
+                        "end_time": None,   # Add new fields for task tracking
+                        "error_message": None, # Add new fields for task tracking
                     }
                 )
 
@@ -141,51 +157,125 @@ def process_actions():
 
             # --- משימת כתיבת קוד ---
             if action_type == "EXECUTE_TASK":
-                if state.get("user_credits", 0) >= cost:
-                    task_to_run = next(
-                        (
-                            t["title"]
-                            for t in state.get("roadmap", [])
-                            if t["id"] == target_id
-                        ),
-                        "משימה לא ידועה",
-                    )
-                    state["system_status"] = "busy"
-                    save_json(STATE_FILE, state)
+                task_entry = next(
+                    (t for t in state.get("roadmap", []) if t["id"] == target_id),
+                    None,
+                )
 
-                    print(f"🛠️ [Dashboard Brain] מבצע: {task_to_run}")
-                    success, info = execute_task_logic(
-                        task_to_run, model=selected_model
-                    )
+                if task_entry:
+                    task_to_run = task_entry["title"]
+                    if state.get("user_credits", 0) >= cost:
+                        task_entry["status"] = "in_progress"
+                        task_entry["start_time"] = datetime.now().isoformat()
+                        state["system_status"] = "busy"
+                        state.setdefault("history", []).append(
+                            {
+                                "timestamp": time.time(),
+                                "message": f"⏳ מתחיל בביצוע משימה: {task_to_run}",
+                                "type": "action_status", # [תוספת] סוג הודעה
+                                "status_detail": "in_progress",
+                            }
+                        )
+                        save_json(STATE_FILE, state)
 
-                    state["user_credits"] -= cost
-                    for task in state.get("roadmap", []):
-                        if task["id"] == target_id:
-                            task["status"] = "completed" if success else "failed"
+                        print(f"🛠️ [Dashboard Brain] מבצע: {task_to_run}")
+                        # Modify execute_task_logic to return LLM metrics
+                        success, info, llm_model, llm_duration, llm_success, llm_cost = execute_task_logic(
+                            task_to_run, model=selected_model
+                        )
 
+                        # [תוספת] רישום שינוי קרדיטים להיסטוריית גרף
+                        if "credit_balance_history" not in state["statistics"]:
+                            state["statistics"]["credit_balance_history"] = []
+                        state["statistics"]["credit_balance_history"].append(
+                            {"timestamp": datetime.now().isoformat(), "balance": state["user_credits"]}
+                        )
+                        state["user_credits"] -= cost
+                        state["statistics"]["credit_balance_history"].append(
+                            {"timestamp": datetime.now().isoformat(), "balance": state["user_credits"]}
+                        )
+
+                        # [תוספת] רישום שימוש ב-LLM
+                        state.setdefault("statistics", {}) \
+                            .setdefault("llm_usage", []).append({
+                                "timestamp": datetime.now().isoformat(),
+                                "type": "EXECUTE_TASK",
+                                "model": llm_model,
+                                "duration": llm_duration,
+                                "success": llm_success,
+                                "cost": llm_cost,
+                            })
+
+                        task_entry["end_time"] = datetime.now().isoformat()
+                        task_entry["status"] = "completed" if success else "failed"
+                        if not success: # [תוספת] שמירת הודעת שגיאה
+                            task_entry["error_message"] = info
+
+                        state.setdefault("history", []).append(
+                            {
+                                "timestamp": time.time(),
+                                "message": (
+                                    f"✅ הושלם: {task_to_run} (-{cost} Cr)"
+                                    if success
+                                    else f"❌ כשל: {info}"
+                                ),
+                                "type": "action_status", # [תוספת] סוג הודעה
+                                "status_detail": "completed" if success else "failed",
+                            }
+                        )
+                        action["status"] = "completed"
+                        state_changed = True
+                    else:
+                        # [תוספת] טיפול בחוסר קרדיטים
+                        task_entry["status"] = "skipped"
+                        task_entry["error_message"] = "Insufficient credits to execute task."
+                        state.setdefault("history", []).append(
+                            {
+                                "timestamp": time.time(),
+                                "message": f"⚠️ דילוג: {task_to_run} (אין מספיק קרדיטים)",
+                                "type": "alert",
+                                "severity": "warning",
+                            }
+                        )
+                        action["status"] = "skipped"
+                        state_changed = True
+                else: # [תוספת] טיפול במשימה לא קיימת ב-roadmap
                     state.setdefault("history", []).append(
                         {
                             "timestamp": time.time(),
-                            "message": (
-                                f"✅ הושלם: {task_to_run} (-{cost} Cr)"
-                                if success
-                                else f"❌ כשל: {info}"
-                            ),
+                            "message": f"❌ שגיאה: משימה לא ידועה {target_id}.",
+                            "type": "alert",
+                            "severity": "error",
                         }
                     )
-                    action["status"] = "completed"
+                    action["status"] = "failed"
                     state_changed = True
 
             # --- תכנון מפת דרכים ---
             elif action_type == "GENERATE_ROADMAP":
                 idea = action.get("payload", {}).get("idea", "רעיון חדש")
+
+                # [תוספת] עדכון סטטוס ל-"in_progress" עבור פעולת ה-roadmap
                 state["system_status"] = "busy"
                 state.setdefault("history", []).append(
-                    {"timestamp": time.time(), "message": "⏳ מתכנן אסטרטגיה..."}
+                    {"timestamp": time.time(), "message": "⏳ מתכנן אסטרטגיה...", "type": "action_status", "status_detail": "in_progress"}
                 )
-                save_json(STATE_FILE, state)
+                save_json(STATE_FILE, state) # [חשוב] שמירת המצב לפני זימון ה-AI
 
-                success, tasks = generate_roadmap_strategy(idea, model=selected_model)
+                # Modify generate_roadmap_strategy to return LLM metrics
+                success, tasks, llm_model, llm_duration, llm_success, llm_cost = generate_roadmap_strategy(idea, model=selected_model)
+                
+                # [תוספת] רישום שימוש ב-LLM
+                state.setdefault("statistics", {}) \
+                    .setdefault("llm_usage", []).append({
+                        "timestamp": datetime.now().isoformat(),
+                        "type": "GENERATE_ROADMAP",
+                        "model": llm_model,
+                        "duration": llm_duration,
+                        "success": llm_success,
+                        "cost": llm_cost,
+                    })
+
                 if success and isinstance(tasks, list):
                     for t_title in tasks:
                         state.setdefault("roadmap", []).append(
@@ -194,16 +284,67 @@ def process_actions():
                                 "title": t_title,
                                 "status": "pending",
                                 "created_at": datetime.now().isoformat(),
+                                "start_time": None,
+                                "end_time": None,
+                                "error_message": None,
                             }
                         )
                     state.setdefault("history", []).append(
                         {
                             "timestamp": time.time(),
                             "message": f"✅ נוצרו {len(tasks)} משימות חדשות.",
+                            "type": "action_status",
+                            "status_detail": "completed",
+                        }
+                    )
+                else:
+                    # [תוספת] טיפול בכשלון יצירת מפת דרכים
+                    state.setdefault("history", []).append(
+                        {
+                            "timestamp": time.time(),
+                            "message": f"❌ כשל ביצירת מפת דרכים: {str(tasks)}",
+                            "type": "alert",
+                            "severity": "error",
                         }
                     )
                 action["status"] = "completed"
                 state_changed = True
+
+        # [תוספת] עידכון סטטיסטיקות משימות
+        if state_changed:
+            total = len(state.get("roadmap", []))
+            completed = sum(1 for t in state.get("roadmap", []) if t["status"] == "completed")
+            failed = sum(1 for t in state.get("roadmap", []) if t["status"] == "failed")
+            pending = sum(1 for t in state.get("roadmap", []) if t["status"] == "pending" or t["status"] == "in_progress" or t["status"] == "skipped")
+            
+            state["statistics"]["task_summary"]["total_tasks"] = total
+            state["statistics"]["task_summary"]["completed_tasks"] = completed
+            state["statistics"]["task_summary"]["failed_tasks"] = failed
+            state["statistics"]["task_summary"]["pending_tasks"] = pending
+
+            # חישוב זמן ממוצע למשימה שהושלמה
+            completed_durations = [
+                (datetime.fromisoformat(t["end_time"]) - datetime.fromisoformat(t["start_time"])) \
+                .total_seconds() for t in state.get("roadmap", [])
+                if t["status"] == "completed" and t["start_time"] and t["end_time"]
+            ]
+            if completed_durations:
+                state["statistics"]["task_summary"]["avg_completion_time_seconds"] = \
+                    sum(completed_durations) / len(completed_durations)
+            else:
+                state["statistics"]["task_summary"]["avg_completion_time_seconds"] = 0.0
+
+
+        remaining_actions.append(action)
+
+    if state_changed:
+        state["system_status"] = "idle"
+        save_json(STATE_FILE, state)
+        save_json(
+            ACTIONS_FILE, [a for a in remaining_actions if a["status"] == "pending"]
+        )
+
+
 
         remaining_actions.append(action)
 

@@ -1,0 +1,18 @@
+{
+    "system_status": "idle",
+    "last_updated": 1778585366.8248882,
+    "root": {
+        "latest_analysis": "",
+        "critic_status": "PASS",
+        "critic_alerts": []
+    },
+    "roadmap": [],
+    "history": [
+        {
+            "timestamp": 1778585366.8248892,
+            "message": "Root OS Engine Initialized in c:\\software\\Root."
+        }
+    ],
+    "user_credits": 1000,
+    "selected_model": "openai/gpt-4o"
+}

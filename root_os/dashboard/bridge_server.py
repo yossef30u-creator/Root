@@ -16,10 +16,10 @@ from openai import OpenAI
 
 # הוספת נתיב ה-core ל-sys.path כדי לאפשר ייבוא של המודולים שבנינו
 sys.path.append(
-    os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "core")
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 )
-from memory import RootMemory
-from config_manager import Config
+from root_os.memory import RootMemory
+from root_os.core.config_manager import Config
 
 # -----------------------
 
@@ -292,11 +292,11 @@ def health_check():
 
 if __name__ == "__main__":
     ensure_files()
-    print("\n" + "═" * 50)
-    print("🚀 [Root OS] THE MONSTER IS AWAKE")
-    print("═" * 50)
-    print(f"📁 Managing Project:  {PROJECT_DIR}")
-    print("🌐 Dashboard: http://127.0.0.1:5050")
-    print("═" * 50 + "\n")
+    print("\n" + "-" * 50)
+    print("[Root OS] THE MONSTER IS AWAKE")
+    print("-" * 50)
+    print(f"Managing Project:  {PROJECT_DIR}")
+    print("Dashboard: http://127.0.0.1:5050")
+    print("-" * 50 + "\n")
 
     app.run(host="0.0.0.0", port=5050, debug=False, use_reloader=False, threaded=True)

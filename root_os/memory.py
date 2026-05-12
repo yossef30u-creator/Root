@@ -7,7 +7,7 @@ import hashlib
 import numpy as np
 import atexit  # הוסף לתמיכה בנעילה וסגירה אלגנטית (הטאקסיט)
 from openai import OpenAI
-from config_manager import Config  # הותאם למנהל ההגדרות שלנו
+from root_os.core.config_manager import Config
 
 # ניסיון ייבוא של ChromaDB. מאפשר למערכת לרוץ גם בטרמוקס (ללא כרומה) וגם בענן
 try:
@@ -43,7 +43,7 @@ class RootMemory:
 
         if self.use_chroma:
             print(
-                "⚡ [Memory] ChromaDB detected. Initializing Cloud-Scale Vector DB..."
+                "[Memory] ChromaDB detected. Initializing Cloud-Scale Vector DB..."
             )
             self.chroma_client = chromadb.PersistentClient(path=self.chroma_path)
             self.collection = self.chroma_client.get_or_create_collection(
@@ -51,7 +51,7 @@ class RootMemory:
             )
         else:
             print(
-                "⚠️ [Memory] ChromaDB not found. Falling back to lightweight JSON/Numpy DB."
+                "[Memory] ChromaDB not found. Falling back to lightweight JSON/Numpy DB."
             )
             self.memory_data = self._load_memory()
             self._enforce_size_limits()  # בדיקת גודל אקטיבית כבר בהפעלה
@@ -64,10 +64,10 @@ class RootMemory:
     # =====
     def graceful_shutdown(self):
         """הטאקסיט: פונקציה שתרוץ תמיד בסגירת התוכנית כדי להבטיח שלא נאבד מידע ואין השחתה"""
-        print("🛡️ [Memory] Graceful shutdown initiated. Securing memory states...")
+        print("[Memory] Graceful shutdown initiated. Securing memory states...")
         if not self.use_chroma:
             self._safe_json_save()
-        print("🔒 [Memory] Memory secured safely.")
+        print("[Memory] Memory secured safely.")
 
     # =====
 
@@ -104,7 +104,7 @@ class RootMemory:
         file_size_mb = os.path.getsize(self.storage_path) / (1024 * 1024)
         if file_size_mb > self.max_file_size_mb:
             print(
-                f"🧹 [Memory] File size ({file_size_mb:.2f}MB) exceeds limit ({self.max_file_size_mb}MB). Pruning old memory..."
+                f"[Memory] File size ({file_size_mb:.2f}MB) exceeds limit ({self.max_file_size_mb}MB). Pruning old memory..."
             )
             trim_count = int(
                 self.max_lite_records * 0.2
