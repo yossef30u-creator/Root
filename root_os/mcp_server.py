@@ -5,6 +5,7 @@ from memory import RootMemory
 from actions import RootActions
 from config import Config
 import uvicorn
+
 # =====
 
 # =====
@@ -13,16 +14,27 @@ mem = RootMemory()
 act = RootActions()
 # =====
 
+
 # =====
 @app.get("/query")
 def query_root_memory(q: str = Query(..., description="The semantic search query")):
     """שליפת הקשר סמנטי מהזיכרון הוקטורי"""
     results = mem.search(q, top_k=3)
     return {
-        "query": q, 
-        "context": [{"score": float(r[0]), "file": r[1]['metadata'].get('file'), "content": r[1]['text']} for r in results]
+        "query": q,
+        "context": [
+            {
+                "score": float(r[0]),
+                "file": r[1]["metadata"].get("file"),
+                "content": r[1]["text"],
+            }
+            for r in results
+        ],
     }
+
+
 # =====
+
 
 # =====
 @app.post("/execute")
@@ -33,6 +45,8 @@ def execute_action(payload: dict = Body(...)):
         return {"error": "No command provided"}
     result = act.execute_command(command)
     return {"command": command, "output": result}
+
+
 # =====
 
 # =====

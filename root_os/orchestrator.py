@@ -10,6 +10,7 @@ from datetime import datetime
 from config import Config
 from github_manager import GitHubManager
 from root_brain import RootBrain
+
 # =====
 
 # =====
@@ -18,17 +19,23 @@ PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 os.chdir(PROJECT_DIR)
 # =====
 
+
 # =====
 class RootOrchestrator:
     def __init__(self):
         print("🚀 [Orchestrator] Booting up Agentic OS...")
         self.github = GitHubManager()
         self.brain = RootBrain()
-        
+
         # תזמונים עתידיים - מאפשר גמישות אם נרצה לשנות זמנים דרך Config
-        self.poll_interval = getattr(Config, 'POLL_INTERVAL', 60) # שניות בין בדיקת משימות (ברירת מחדל דקה)
-        self.proactive_interval = getattr(Config, 'PROACTIVE_INTERVAL', 3600) # שניות בין יזימת משימות (ברירת מחדל שעה)
+        self.poll_interval = getattr(
+            Config, "POLL_INTERVAL", 60
+        )  # שניות בין בדיקת משימות (ברירת מחדל דקה)
+        self.proactive_interval = getattr(
+            Config, "PROACTIVE_INTERVAL", 3600
+        )  # שניות בין יזימת משימות (ברירת מחדל שעה)
         self.last_proactive_run = time.time()
+
     # =====
 
     # =====
@@ -46,6 +53,7 @@ class RootOrchestrator:
             print(f"⚠️ [Orchestrator] Ingestor cycle failed: {e}")
         except Exception as e:
             print(f"❌ [Orchestrator] Failed to execute ingestor.py: {e}")
+
     # =====
 
     # =====
@@ -58,31 +66,43 @@ class RootOrchestrator:
                 return
 
             for task in tasks:
-                issue_id = task['number']
-                title = task['title']
-                body = task.get('body', '')
-                
+                issue_id = task["number"]
+                title = task["title"]
+                body = task.get("body", "")
+
                 print(f"🎯 [Orchestrator] Acquired Task #{issue_id}: {title}")
-                self.github.comment_on_issue(issue_id, "🤖 **Root OS Status:** Acknowledged. Beginning execution...")
-                
+                self.github.comment_on_issue(
+                    issue_id,
+                    "🤖 **Root OS Status:** Acknowledged. Beginning execution...",
+                )
+
                 # בניית הפרומפט הארכיטקטוני למוח
                 instruction = f"Task Context from GitHub Issue #{issue_id}\nTitle: {title}\nDescription: {body}\nExecute necessary actions to resolve this. Do not ask for human input."
-                
+
                 # הרצת המוח האוטונומי (נניח שיש מתודה solve_task בקובץ root_brain.py)
                 result = self.brain.solve_task(instruction)
-                
+
                 # ניתוח התוצאה וסגירת המעגל מול GitHub
-                if "Error" not in result and "Failed" not in result: 
-                    self.github.comment_on_issue(issue_id, f"✅ **Task Completed Successfully!**\n\n### Agent Report:\n```\n{result}\n```")
+                if "Error" not in result and "Failed" not in result:
+                    self.github.comment_on_issue(
+                        issue_id,
+                        f"✅ **Task Completed Successfully!**\n\n### Agent Report:\n```\n{result}\n```",
+                    )
                     self.github.close_issue(issue_id)
                     print(f"✅ [Orchestrator] Task #{issue_id} resolved and closed.")
                 else:
-                    self.github.comment_on_issue(issue_id, f"⚠️ **Task Execution Encountered Issues:**\n\n```\n{result}\n```\nRequires human review.")
-                    print(f"⚠️ [Orchestrator] Task #{issue_id} requires human intervention.")
-                    
+                    self.github.comment_on_issue(
+                        issue_id,
+                        f"⚠️ **Task Execution Encountered Issues:**\n\n```\n{result}\n```\nRequires human review.",
+                    )
+                    print(
+                        f"⚠️ [Orchestrator] Task #{issue_id} requires human intervention."
+                    )
+
         except Exception as e:
             print(f"❌ [Orchestrator] Task processing error: {e}")
-            traceback.print_exc() # צופה פני עתיד: הדפסת מחסנית השגיאה המלאה ללוגים
+            traceback.print_exc()  # צופה פני עתיד: הדפסת מחסנית השגיאה המלאה ללוגים
+
     # =====
 
     # =====
@@ -109,16 +129,20 @@ class RootOrchestrator:
             except Exception as e:
                 print(f"❌ [Orchestrator] Critical Loop Error: {e}")
                 # מונע מצב של לולאה אינסופית מהירה במקרה של קריסת רשת
-                time.sleep(self.poll_interval) 
+                time.sleep(self.poll_interval)
+
     # =====
+
 
 # =====
 if __name__ == "__main__":
     # הגנת Boot: נוודא שהמשתנים הקריטיים קיימים לפני שהסוכן מתחיל לרוץ
     if not Config.GITHUB_TOKEN:
-        print("❌ [Orchestrator Boot Error] GITHUB_TOKEN is missing. Cannot sync with Command Center.")
+        print(
+            "❌ [Orchestrator Boot Error] GITHUB_TOKEN is missing. Cannot sync with Command Center."
+        )
         exit(1)
-        
+
     orchestrator = RootOrchestrator()
     orchestrator.run_forever()
 # =====

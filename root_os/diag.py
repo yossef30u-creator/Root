@@ -4,9 +4,10 @@ from dotenv import load_dotenv
 # טעינה אקטיבית של הסביבה
 load_dotenv()
 
+
 def run_diagnostics():
-    print('--- אבחון מערכת Root ---')
-    
+    print("--- אבחון מערכת Root ---")
+
     # 1. בדיקת מפתח API
     api_key = os.getenv("OPENAI_API_KEY")
     if api_key and api_key.startswith("sk-"):
@@ -18,6 +19,7 @@ def run_diagnostics():
     try:
         from root_brain import RootBrain
         from memory import RootMemory
+
         b = RootBrain()
         m = RootMemory()
         print(f"✅ Brain Module: Ready")
@@ -30,11 +32,12 @@ def run_diagnostics():
     # 3. בדיקת קבצי ליבה
     manifest_exists = os.path.exists("ROOT.md")
     print(f"✅ Manifest Check: {'Exists' if manifest_exists else 'Missing'}")
-    
+
     if manifest_exists:
         with open("ROOT.md", "r", encoding="utf-8") as f:
             content = f.read()
             print(f"✅ Context awareness: {len(content)} characters loaded")
+
 
 if __name__ == "__main__":
     run_diagnostics()

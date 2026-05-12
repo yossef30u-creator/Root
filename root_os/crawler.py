@@ -1,12 +1,14 @@
 # =====
 import os
 from memory import RootMemory
+
 # =====
 
 # =====
-IGNORE_DIRS = ['.git', '.root', 'venv', '__pycache__']
-ALLOWED_EXTENSIONS = ['.py', '.md']
+IGNORE_DIRS = [".git", ".root", "venv", "__pycache__"]
+ALLOWED_EXTENSIONS = [".py", ".md"]
 # =====
+
 
 # =====
 def crawl_project():
@@ -14,21 +16,21 @@ def crawl_project():
     mem = RootMemory()
     files_indexed = 0
 
-    for root_dir, dirs, files in os.walk('.'):
+    for root_dir, dirs, files in os.walk("."):
         dirs[:] = [d for d in dirs if d not in IGNORE_DIRS]
-        
+
         for file in files:
             if any(file.endswith(ext) for ext in ALLOWED_EXTENSIONS):
                 file_path = os.path.join(root_dir, file)
                 # =====
                 try:
-                    with open(file_path, 'r', encoding='utf-8') as f:
+                    with open(file_path, "r", encoding="utf-8") as f:
                         content = f.read()
-                    
+
                     if content.strip():
                         mem.add_memory(
                             text=f"File: {file_path}\nContent:\n{content}",
-                            metadata={"type": "crawl", "file": file_path}
+                            metadata={"type": "crawl", "file": file_path},
                         )
                         files_indexed += 1
                 except Exception as e:
@@ -36,6 +38,8 @@ def crawl_project():
                 # =====
 
     print(f"🎉 Indexed {files_indexed} files.")
+
+
 # =====
 
 # =====

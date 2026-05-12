@@ -2,16 +2,19 @@
 import subprocess
 import os
 from config import Config
+
 # =====
+
 
 # =====
 class RootActions:
     def __init__(self):
         # רשימת פקודות אסורות מטעמי בטיחות
         self.forbidden_commands = ["rm -rf /", "mkfs", "shutdown"]
-# =====
 
-# =====
+    # =====
+
+    # =====
     def execute_command(self, command):
         """מבצע פקודת טרמינל ומחזיר את הפלט"""
         # בדיקת בטיחות בסיסית
@@ -22,13 +25,9 @@ class RootActions:
         # =====
         try:
             result = subprocess.run(
-                command, 
-                shell=True, 
-                capture_output=True, 
-                text=True, 
-                timeout=30
+                command, shell=True, capture_output=True, text=True, timeout=30
             )
-            
+
             if result.returncode == 0:
                 return f"✅ Success:\n{result.stdout}"
             else:
@@ -36,9 +35,10 @@ class RootActions:
         except Exception as e:
             return f"❌ Execution Error: {str(e)}"
         # =====
-# =====
 
-# =====
+    # =====
+
+    # =====
     def create_file(self, path, content):
         """יוצר קובץ חדש בפרויקט"""
         try:
@@ -48,6 +48,8 @@ class RootActions:
             return f"✅ File created: {path}"
         except Exception as e:
             return f"❌ File creation failed: {str(e)}"
+
+
 # =====
 
 # =====

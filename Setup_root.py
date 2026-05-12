@@ -9,20 +9,22 @@ import venv
 # --- הגדרות התקנה ---
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 # תוספת: תיקיית הזיכרון הנסתרת (.root) מתווספת לרשימה
-REQUIRED_DIRS = ["core", "dashboard", ".root"] 
+REQUIRED_DIRS = ["core", "dashboard", ".root"]
 REQUIRED_PACKAGES = [
-    "watchdog",      # חיישן הקבצים
-    "openai",        # מוח ה-AI
-    "flask",         # שרת הדשבורד
-    "flask-cors",    # חיבור לדשבורד מכל מקום
-    "python-dotenv", # ניהול משתני סביבה (מורשת)
-    "numpy"          # תוספת: חובה עבור מערכת הזיכרון האדפטיבית החדשה
+    "watchdog",  # חיישן הקבצים
+    "openai",  # מוח ה-AI
+    "flask",  # שרת הדשבורד
+    "flask-cors",  # חיבור לדשבורד מכל מקום
+    "python-dotenv",  # ניהול משתני סביבה (מורשת)
+    "numpy",  # תוספת: חובה עבור מערכת הזיכרון האדפטיבית החדשה
 ]
 # =====
+
 
 # =====
 def print_step(msg):
     print(f"\n⚙️  [Setup] {msg}")
+
 
 def check_python_version():
     """מוודא שהמשתמש מריץ גרסת פייתון עדכנית"""
@@ -31,7 +33,10 @@ def check_python_version():
         print("❌ שגיאה: Root OS דורש Python 3.8 ומעלה.")
         sys.exit(1)
     print("✅ גרסת Python תקינה.")
+
+
 # =====
+
 
 # =====
 def create_directories():
@@ -44,20 +49,31 @@ def create_directories():
             print(f"📁 נוצרה תיקייה: {d}/")
         else:
             print(f"✔️ תיקיית {d}/ כבר קיימת.")
+
+
 # =====
+
 
 # =====
 def install_dependencies():
     """מתקין את כל הספריות הנדרשות ישירות לסביבה"""
     print_step("מתקין חבילות ותלויות (זה עשוי לקחת דקה)...")
     try:
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "pip"], stdout=subprocess.DEVNULL)
-        subprocess.check_call([sys.executable, "-m", "pip", "install"] + REQUIRED_PACKAGES)
+        subprocess.check_call(
+            [sys.executable, "-m", "pip", "install", "--upgrade", "pip"],
+            stdout=subprocess.DEVNULL,
+        )
+        subprocess.check_call(
+            [sys.executable, "-m", "pip", "install"] + REQUIRED_PACKAGES
+        )
         print("✅ כל החבילות הותקנו בהצלחה.")
     except Exception as e:
         print(f"❌ שגיאה בהתקנת חבילות: {e}")
         print("💡 נסה להריץ: pip install " + " ".join(REQUIRED_PACKAGES))
+
+
 # =====
+
 
 # =====
 def setup_env_file():
@@ -75,6 +91,7 @@ def setup_env_file():
     else:
         print("✔️ קובץ .env כבר קיים.")
 
+
 def init_global_config():
     """תוספת: מריץ את ה-Bootloader כדי להבטיח מעבר ל-Global Config החדש"""
     print_step("מאתחל הגדרות גלובליות (~/.root_config)...")
@@ -84,7 +101,10 @@ def init_global_config():
         subprocess.call([sys.executable, boot_path])
     else:
         print("⚠️ קובץ boot.py לא נמצא, מדלג על אתחול גלובלי.")
+
+
 # =====
+
 
 # =====
 def create_startup_script():
@@ -96,14 +116,18 @@ def create_startup_script():
         f.write("echo '🚀 מתניע את Root OS...'\n")
         # תוספת: עדכון נתיב ההפעלה לארכיטקטורה החדשה והוספת משתנה ה-PYTHONPATH הנדרש
         f.write("export PYTHONPATH=.\n")
-        f.write(f"python3 {os.path.join(PROJECT_ROOT, 'root_os/core/root_service.py')} || python3 {os.path.join(PROJECT_ROOT, 'root_service.py')}\n")
-    
+        f.write(
+            f"python3 {os.path.join(PROJECT_ROOT, 'root_os/core/root_service.py')} || python3 {os.path.join(PROJECT_ROOT, 'root_service.py')}\n"
+        )
+
     # מתן הרשאות הרצה בלינוקס/טרמוקס
     try:
         os.chmod(script_path, 0o755)
         print("⚡ נוצר קובץ הפעלה (start.sh).")
     except:
         pass
+
+
 # =====
 
 # =====
@@ -111,14 +135,14 @@ if __name__ == "__main__":
     print("========================================")
     print("🌳 ברוכים הבאים להתקנת Root Agentic OS")
     print("========================================")
-    
+
     check_python_version()
     create_directories()
     install_dependencies()
     setup_env_file()
-    init_global_config() # תוספת הפעלת הבוטלואדר של הארכיטקטורה החדשה
+    init_global_config()  # תוספת הפעלת הבוטלואדר של הארכיטקטורה החדשה
     create_startup_script()
-    
+
     print("\n========================================")
     print("🎉 ההתקנה הושלמה בהצלחה!")
     print("========================================")

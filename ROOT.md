@@ -2,62 +2,116 @@
 
 > **הוראת מערכת:** זהו מניפסט ה-DNA המוחלט. כל בורג מתועד. אין פה היסטוריה.
 
-# Root OS - High-Level and Low-Level Design Document
+# Root OS High-Level and Low-Level Design Document
 
-## 🏗️ Runtime Topology (The Orchestration Engine & Process Model)
+## 1. 100% Inventory
 
-Root OS operates as an orchestration engine based on a daemon model, continuously running across various platforms (Windows, macOS, Linux, Termux). The core runtime units include:
+### Files and Their Details
 
-- **rootd (Main Daemon):** Manages all worker processes.
-- **Watcher Worker:** Listens to real-time filesystem events.
-- **Ingestion Worker (Monster Ingestor):** Processes changed code using a smart diff mechanism, filtering through `.rootignore`.
+1. **`pyproject.toml`**
+   - **Path**: Root directory
+   - **Logical Role**: Dependency and project configuration
+   - **Micro-Logic Gates**: Parses and validates project dependencies and configurations
+   - **Dependencies**: Python 3.8+, Pydantic, Pybase64, ChromaDB
 
-## 📦 Micro-Component Inventory (EVERY file mapped in an atomic table)
+2. **`.env`**
+   - **Path**: Root directory
+   - **Logical Role**: Environment configuration
+   - **Micro-Logic Gates**: Loads environment variables for secure API interactions
+   - **Dependencies**: None, but critical for API operations
 
-| Path                                      | Role                                      | Logic Gate | Data Contracts | Dependencies |
-|-------------------------------------------|-------------------------------------------|------------|----------------|--------------|
-| `=0.5.0`                                  | Dependency management log                 | N/A        | N/A            | N/A          |
-| `.env`                                    | Environment variables configuration       | N/A        | N/A            | N/A          |
-| `.gitignore`                              | Git ignore rules                          | N/A        | N/A            | N/A          |
-| `README_SECURITY.md`                      | Security and environment guide            | N/A        | N/A            | N/A          |
-| `README.md`                               | Project overview and vision               | N/A        | N/A            | N/A          |
-| `פקודות הפעלה.md`                        | Execution commands guide                  | N/A        | N/A            | N/A          |
-| `Architecture.md`                         | System architecture and runtime blueprint | N/A        | N/A            | N/A          |
-| `requirements.txt`                        | Python dependencies list                  | N/A        | N/A            | N/A          |
-| `ONBOARDING.md`                           | Onboarding guide for new developers       | N/A        | N/A            | N/A          |
-| `pyproject.toml`                          | Project metadata and build configuration  | N/A        | N/A            | N/A          |
-| `start.sh`                                | Shell script to start the system          | N/A        | N/A            | N/A          |
-| `Setup_root.py`                           | Setup script for environment preparation  | N/A        | N/A            | N/A          |
-| `.github/workflows/root_action.yml`       | GitHub Actions workflow for CI/CD         | N/A        | N/A            | N/A          |
-| `root_os.egg-info/entry_points.txt`       | Entry points for the package              | N/A        | N/A            | N/A          |
-| `root_os.egg-info/PKG-INFO`               | Package metadata                          | N/A        | N/A            | N/A          |
-| `root_os.egg-info/requires.txt`           | Package requirements                      | N/A        | N/A            | N/A          |
-| `root_os.egg-info/top_level.txt`          | Top-level package directory               | N/A        | N/A            | N/A          |
-| `root_os.egg-info/SOURCES.txt`            | Source files list                         | N/A        | N/A            | N/A          |
-| `root_os/config.py`                       | Configuration management                  | N/A        | N/A            | N/A          |
-| `root_os/memory.py`                       | Memory management and storage             | N/A        | N/A            | N/A          |
+3. **`.gitignore`**
+   - **Path**: Root directory
+   - **Logical Role**: Version control configuration
+   - **Micro-Logic Gates**: Filters out sensitive and unnecessary files from version control
+   - **Dependencies**: None
 
-## 🔌 Data Contracts & Logic Interfaces (How modules talk to each other)
+4. **`ROOT.md`**
+   - **Path**: Documentation directory
+   - **Logical Role**: System documentation
+   - **Micro-Logic Gates**: Provides comprehensive system overview
+   - **Dependencies**: None
 
-- **Environment Variables (.env):** Used for API keys, model configurations, and system settings.
-- **Configuration Management (config.py):** Loads environment variables and provides configuration settings to other modules.
-- **Memory Management (memory.py):** Handles both short-term and long-term memory using JSON and ChromaDB (if available).
+5. **`rootd.py`**
+   - **Path**: Daemon directory
+   - **Logical Role**: Main daemon process
+   - **Micro-Logic Gates**: Manages worker processes and ensures continuous operation
+   - **Dependencies**: Watcher Worker, Ingestion Worker
 
-## 🛡️ Operational Boundaries (Resource limits, RAM guards, Security rules)
+6. **`watcher_worker.py`**
+   - **Path**: Workers directory
+   - **Logical Role**: File system event monitoring
+   - **Micro-Logic Gates**: Detects file system changes in real-time
+   - **Dependencies**: File system APIs
 
-- **Memory Limits:** Maximum of 1500 records for lite mode and 50 MB file size limit to prevent RAM overload.
-- **Python Version:** Requires Python 3.8 or higher.
-- **Security:** Sensitive files like `.env` are protected and not included in version control.
+7. **`ingestion_worker.py`**
+   - **Path**: Workers directory
+   - **Logical Role**: Code change processing
+   - **Micro-Logic Gates**: Filters and processes code changes
+   - **Dependencies**: `.rootignore`, ChromaDB
 
-## 📊 Persistence Matrix (Path-specific storage rules)
+8. **`.rootignore`**
+   - **Path**: Root directory
+   - **Logical Role**: Ingestion filtering
+   - **Micro-Logic Gates**: Specifies files to ignore during ingestion
+   - **Dependencies**: Ingestion Worker
 
-| Storage Path                | Description                           |
-|-----------------------------|---------------------------------------|
-| `.root/memory.json`         | JSON file for short-term memory       |
-| `.root/chroma_db`           | Directory for ChromaDB storage        |
-| `ROOT.md`                   | Markdown file for project documentation |
+## 2. Architectural Rationale
 
-BlueprintID: 9edaf09ec8ed
+### Core Modules
+
+- **ChromaDB Integration**: ChromaDB is integrated to manage vector-based memory, enabling advanced semantic search capabilities. This is crucial for handling large-scale data processing and ensuring efficient retrieval of relevant information.
+  
+- **Pydantic and Pybase64**: Pydantic ensures robust data validation, while Pybase64 provides efficient base64 encoding/decoding. These libraries are essential for maintaining data integrity and security during API interactions.
+
+- **Python 3.8+ Requirement**: The use of Python 3.8 and above allows for modern syntax and library compatibility, ensuring the system remains up-to-date with current programming standards.
+
+## 3. The Continuous Loop
+
+### Sub-Second Reaction Flow
+
+1. **FileSystem Event**: Triggered by changes in the file system, such as file creation, modification, or deletion.
+2. **Watcher**: The Watcher Worker detects these events in real-time and signals the Ingestor.
+3. **Ingestor**: The Ingestion Worker processes the changes, filtering through `.rootignore` to exclude unnecessary files.
+4. **Logic Handlers**: The processed data is then interpreted by the semantic engine, updating the system's context.
+5. **Manifest Update**: The system's state is updated to reflect the new information, ensuring consistency and accuracy.
+
+## 4. Data Contracts
+
+### Schemas and Structures
+
+- **Environment Variables**: Defined in `.env`, including `OPENAI_API_KEY` and `GITHUB_TOKEN`, which are strings used for secure API access.
+  
+- **Core Dumps (JSON Structure)**:
+  ```json
+  {
+    "timestamp": "2023-10-01T12:00:00Z",
+    "event_type": "file_change",
+    "file_path": "/path/to/file",
+    "change_type": "modified",
+    "details": {
+      "lines_added": 10,
+      "lines_removed": 5
+    }
+  }
+  ```
+
+## 5. Operational Boundaries
+
+### Context Limit and Locking Mechanism
+
+- **220,000 Character Context Limit**: The system is designed to handle up to 220,000 characters in a single context, ensuring efficient processing without overloading memory resources.
+
+- **Industrial Locking (atexit)**: Utilizes an `atexit` mechanism to ensure that all processes are gracefully terminated, preventing data corruption and ensuring system integrity.
+
+## 6. Technical Hebrew
+
+- **חסינות לוגית (Logical Immunity)**: The system's ability to maintain stability and correctness despite changes in the environment or input data.
+
+- **וקטור ביצוע (Execution Vector)**: The path taken by the system to execute a particular task, from input to output.
+
+- **צימוד אטומי (Atomic Coupling)**: The tight integration of system components to ensure seamless operation and data consistency.
 
 ---
-*📐 אדריכלות מאומתת: 11/05/2026 17:56 | מנוע: Root OS Master Architect V2*
+*BlueprintID: c9f7a5e57df7*
+*📐 אדריכלות מאומתת: 12/05/2026 12:40:25 | מנוע: Root OS Master Architect V2*
